@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { registerConfigCommands } from './commands/config/index.js';
 import { registerVaultCommands } from './commands/vault/index.js';
+import { registerNoteCommands } from './commands/note/index.js';
 
 const program = new Command();
 
@@ -12,5 +13,6 @@ program
 
 registerConfigCommands(program);
 registerVaultCommands(program);
+registerNoteCommands(program);
 
 program.parse();
