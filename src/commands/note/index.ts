@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { ConfigManager } from '../../services/ConfigManager.js';
 import { NoteBuilder } from '../../services/NoteBuilder.js';
+import { NoteAnalyzer } from '../../services/NoteAnalyzer.js';
 import { ObsidianParser } from '../../services/ObsidianParser.js';
 import { rename } from 'fs/promises';
 import { join } from 'path';
@@ -60,5 +61,24 @@ export function registerNoteCommands(program: Command): void {
 
       await rename(fromPath, toPath);
       console.log(JSON.stringify({ from: opts.from, to: `${opts.to}${filename}` }));
+    });
+
+  note
+    .command('context')
+    .description('Get full routing context for a note')
+    .requiredOption('--vault <name>', 'Vault name')
+    .requiredOption('--note <path>', 'Note path relative to vault')
+    .action(async (opts: { vault: string; note: string }) => {
+      const mgr = new ConfigManager();
+      const cfg = await mgr.load();
+      const v = mgr.getVault(cfg, opts.vault);
+      if (!v) {
+        console.error(`Vault "${opts.vault}" not found`);
+        process.exit(1);
+      }
+
+      const analyzer = new NoteAnalyzer(v.path);
+      const context = await analyzer.buildContext(opts.note);
+      console.log(JSON.stringify(context, null, 2));
     });
 }
