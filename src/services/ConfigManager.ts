@@ -47,20 +47,41 @@ export class ConfigManager {
   private parse(content: string): Config {
     const vaults: Vault[] = [];
     let defaultVault: string | undefined;
+    let currentSection: string | undefined;
 
     for (const line of content.split('\n')) {
-      // Parse "- name: /path/to/vault"
-      const vaultMatch = line.match(/^- ([^:]+): (.+)$/);
-      if (vaultMatch) {
-        vaults.push({ name: vaultMatch[1], path: vaultMatch[2].trim() });
+      // Track which ## section we're in
+      const sectionMatch = line.match(/^## (.+)$/);
+      if (sectionMatch) {
+        currentSection = sectionMatch[1].trim();
+        continue;
       }
-      // Parse "Default: name"
+
+      // Parse "- name: /path/to/vault" only inside ## Vaults
+      if (currentSection === 'Vaults') {
+        const vaultMatch = line.match(/^- ([^:]+): (.+)$/);
+        if (vaultMatch) {
+          vaults.push({ name: vaultMatch[1], path: this.expandTilde(vaultMatch[2].trim()) });
+        }
+      }
+
+      // Parse "Default: name" (in any section, typically under Vaults)
       if (line.startsWith('Default: ')) {
         defaultVault = line.slice(9).trim();
       }
     }
 
     return { vaults, default: defaultVault };
+  }
+
+  private expandTilde(filePath: string): string {
+    if (filePath === '~') {
+      return this.homeDir;
+    }
+    if (filePath.startsWith('~/')) {
+      return join(this.homeDir, filePath.slice(2));
+    }
+    return filePath;
   }
 
   getVault(config: Config, name: string): Vault | undefined {

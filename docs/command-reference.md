@@ -58,9 +58,9 @@ Options:
 
 Commands:
   config          Global configuration operations
-  vault <name>    Vault operations
+  vault           Vault operations
   note            Note operations
-  daily <vault>   Daily note operations
+  daily           Daily note operations
   help [command]  display help for command
 ```
 
@@ -121,17 +121,113 @@ test
 
 ## Vault Commands
 
-### `sb vault <name> info|obsidian|structure`
-
-**STATUS: BROKEN** - Commander.js interprets the `<name>` argument as a subcommand name, so `sb vault test info` fails with:
+### `sb vault --help`
 
 ```
-error: unknown command 'test'
+Usage: sb vault [options] [command]
+
+Vault operations
+
+Options:
+  -h, --help         display help for command
+
+Commands:
+  info [options]      Show vault metadata
+  obsidian [options]  Parse .obsidian config as JSON
+  structure [options] Discover PARA folder structure
+  help [command]      display help for command
 ```
 
-This affects all three vault subcommands (`info`, `obsidian`, `structure`). The underlying services (ObsidianParser, VaultDiscovery) work correctly — only the CLI wiring is broken.
+### `sb vault info --vault <name>`
 
-**Root cause:** `program.command('vault <name>')` with `.command('info')` subcommands. Commander.js doesn't support positional args before subcommands this way.
+Shows vault metadata (name and path) as JSON.
+
+```
+sb vault info --vault test
+```
+
+**Output:**
+
+```json
+{
+  "name": "test",
+  "path": "/absolute/path/to/test/fixtures/test-vault"
+}
+```
+
+**Exit code:** 0 on success, 1 if vault not found.
+
+#### Unknown vault
+
+```
+sb vault info --vault nonexistent
+```
+
+```
+Vault "nonexistent" not found
+```
+
+Exit code: 1.
+
+#### Missing required option
+
+```
+sb vault info
+```
+
+```
+error: required option '--vault <name>' not specified
+```
+
+Exit code: 1.
+
+### `sb vault obsidian --vault <name>`
+
+Parses the `.obsidian/` config directory and returns all discovered settings as JSON.
+
+```
+sb vault obsidian --vault test
+```
+
+**Output:**
+
+```json
+{
+  "dailyNotes": {
+    "folder": "Fleeting",
+    "template": "Templates/daily"
+  },
+  "templates": {
+    "folder": "Templates"
+  },
+  "zkPrefixer": {
+    "folder": "📫 Inbox"
+  },
+  "inbox": "📫 Inbox"
+}
+```
+
+### `sb vault structure --vault <name>`
+
+Discovers PARA folder structure in the vault.
+
+```
+sb vault structure --vault test
+```
+
+**Output:**
+
+```json
+{
+  "destinations": [
+    { "path": "Areas/Health/", "type": "area" },
+    { "path": "Areas/Productivity/", "type": "area" },
+    { "path": "Projects/MyProject/", "type": "project" },
+    { "path": "Resources/Languages/", "type": "resource" },
+    { "path": "Resources/Tools/", "type": "resource" }
+  ]
+}
+```
 
 ---
 
@@ -349,19 +445,63 @@ sb note move --vault test \
 
 ## Daily Commands
 
-### `sb daily <vault> path|append`
-
-**STATUS: BROKEN** — Same Commander.js issue as vault commands. `sb daily test path` fails with:
+### `sb daily --help`
 
 ```
-error: unknown command 'test'
+Usage: sb daily [options] [command]
+
+Daily note operations
+
+Options:
+  -h, --help         display help for command
+
+Commands:
+  path [options]     Show today's daily note path
+  append [options]   Append content to a section of the daily note
+  help [command]     display help for command
 ```
 
-The underlying `DailyNoteManager` service works correctly in tests.
+### `sb daily path --vault <name>`
 
-**Expected behavior (from unit tests):**
-- `path`: Returns the full path to today's daily note, e.g. `/vault/Fleeting/2026-02-14.md`
-- `append`: Appends content to a named section of the daily note, creating the section if missing
+Returns the full filesystem path to today's daily note.
+
+```
+sb daily path --vault test
+```
+
+**Output:**
+
+```
+/absolute/path/to/test-vault/Fleeting/2026-02-14.md
+```
+
+**Behavior:**
+- Daily note folder is read from `.obsidian/daily-notes.json` `folder` field, falls back to `Daily`
+- Filename format: `YYYY-MM-DD.md` using today's date
+
+### `sb daily append --vault <name> --section <header> --content <text>`
+
+Appends content to a named section of today's daily note. Creates the section if it doesn't exist.
+
+```
+sb daily append --vault test --section "## Links" \
+  --content "- [[202602141147 redis-caching-patterns]] - Redis insight"
+```
+
+**Output:**
+
+```json
+{
+  "path": "/absolute/path/to/test-vault/Fleeting/2026-02-14.md",
+  "section": "## Links"
+}
+```
+
+**Behavior:**
+- Finds the section by matching the header string exactly
+- Appends content after existing section content, before the next section
+- Creates the section at the end of the file if not found
+- Preserves existing content order
 
 ---
 
@@ -402,22 +542,15 @@ Error: ENOENT: no such file or directory, open '~/Vaults/.../Inbox/...'
 
 **Fix:** Expand `~` to `os.homedir()` in `ConfigManager.parse()` or `getVault()`.
 
-### 3. `vault` and `daily` commands: Commander.js argument-before-subcommand pattern broken
+### 3. ~~`vault` and `daily` commands: Commander.js argument-before-subcommand pattern broken~~
 
-**Severity:** High
-**Affected:** `sb vault <name> info|obsidian|structure`, `sb daily <vault> path|append`
+**FIXED.** Switched to `--vault <name>` flag on each subcommand, matching the pattern used by `note` commands.
 
-Commander.js does not support `command('vault <name>')` followed by subcommands. The positional arg `<name>` is interpreted as a subcommand name.
-
-```
-$ sb vault test info
-error: unknown command 'test'
-```
-
-**Fix options:**
-1. Switch to `--vault` flag on each subcommand (like `note` commands do — these work)
-2. Use `vault:info --name test` colon-separated pattern
-3. Use `command('vault').argument('<name>')` with `addCommand()` for each sub
+- `sb vault info --vault test` (was: `sb vault test info`)
+- `sb vault obsidian --vault test` (was: `sb vault test obsidian`)
+- `sb vault structure --vault test` (was: `sb vault test structure`)
+- `sb daily path --vault test` (was: `sb daily test path`)
+- `sb daily append --vault test ...` (was: `sb daily test append ...`)
 
 ### 4. `config vaults` error is an unformatted stack trace
 
@@ -438,7 +571,7 @@ ConfigNotFoundError: Second brain not configured. Run /second-brain:setup first.
 ## Test Results
 
 ```
- ✓ test/config.test.ts    (6 tests)
+ ✓ test/config.test.ts    (7 tests)
  ✓ test/vault.test.ts     (7 tests)
  ✓ test/note.test.ts      (5 tests)
  ✓ test/daily.test.ts     (6 tests)
@@ -446,7 +579,7 @@ ConfigNotFoundError: Second brain not configured. Run /second-brain:setup first.
  ✓ test/integration.test.ts (3 tests)
 
  Test Files  6 passed (6)
-      Tests  32 passed (32)
+      Tests  33 passed (33)
 ```
 
-All 32 unit/integration tests pass. The bugs above are CLI-wiring issues not covered by the service-level tests.
+All 33 tests pass.

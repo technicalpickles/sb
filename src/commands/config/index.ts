@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { ConfigManager } from '../../services/ConfigManager.js';
+import { ConfigManager, ConfigNotFoundError } from '../../services/ConfigManager.js';
 import { readFile } from 'fs/promises';
 
 export function registerConfigCommands(program: Command): void {
@@ -29,8 +29,16 @@ export function registerConfigCommands(program: Command): void {
     .description('List vaults as JSON')
     .action(async () => {
       const mgr = new ConfigManager();
-      const cfg = await mgr.load();
-      console.log(JSON.stringify(cfg.vaults, null, 2));
+      try {
+        const cfg = await mgr.load();
+        console.log(JSON.stringify(cfg.vaults, null, 2));
+      } catch (err: unknown) {
+        if (err instanceof ConfigNotFoundError) {
+          console.error(err.message);
+          process.exit(1);
+        }
+        throw err;
+      }
     });
 
   config
@@ -38,12 +46,20 @@ export function registerConfigCommands(program: Command): void {
     .description('Show default vault name')
     .action(async () => {
       const mgr = new ConfigManager();
-      const cfg = await mgr.load();
-      if (cfg.default) {
-        console.log(cfg.default);
-      } else {
-        console.error('No default vault configured');
-        process.exit(1);
+      try {
+        const cfg = await mgr.load();
+        if (cfg.default) {
+          console.log(cfg.default);
+        } else {
+          console.error('No default vault configured');
+          process.exit(1);
+        }
+      } catch (err: unknown) {
+        if (err instanceof ConfigNotFoundError) {
+          console.error(err.message);
+          process.exit(1);
+        }
+        throw err;
       }
     });
 }

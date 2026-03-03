@@ -85,6 +85,52 @@ describe('ConfigManager', () => {
     expect(vault!.name).toBe('primary');
   });
 
+  it('expands tilde in vault paths', async () => {
+    const claudeDir = join(tempDir, '.claude');
+    await mkdir(claudeDir, { recursive: true });
+    await writeFile(
+      join(claudeDir, 'second-brain.md'),
+      '# Second Brain Configuration\n\n## Vaults\n\n- primary: ~/Vaults/my-vault\n- work: /absolute/path\n\nDefault: primary'
+    );
+
+    const mgr = new ConfigManager(tempDir);
+    const config = await mgr.load();
+
+    expect(config.vaults[0].path).toBe(join(tempDir, 'Vaults/my-vault'));
+    expect(config.vaults[1].path).toBe('/absolute/path');
+  });
+
+  it('only parses vault entries under ## Vaults, not other sections', async () => {
+    const claudeDir = join(tempDir, '.claude');
+    await mkdir(claudeDir, { recursive: true });
+    await writeFile(
+      join(claudeDir, 'second-brain.md'),
+      [
+        '# Second Brain Configuration',
+        '',
+        '## Vaults',
+        '',
+        '- primary: ~/Vaults/pickled-knowledge/pickled-knowledge/',
+        '',
+        'Default: primary',
+        '',
+        '## Settings',
+        '',
+        '- Daily notes: Fleeting/',
+        '- Templates: Templates/',
+        '- Inbox: 📫 Inbox/',
+      ].join('\n')
+    );
+
+    const mgr = new ConfigManager(tempDir);
+    const config = await mgr.load();
+
+    expect(config.vaults).toHaveLength(1);
+    expect(config.vaults[0].name).toBe('primary');
+    expect(config.vaults[0].path).toBe(join(tempDir, 'Vaults/pickled-knowledge/pickled-knowledge/'));
+    expect(config.default).toBe('primary');
+  });
+
   it('returns undefined for unknown vault', async () => {
     const claudeDir = join(tempDir, '.claude');
     await mkdir(claudeDir, { recursive: true });

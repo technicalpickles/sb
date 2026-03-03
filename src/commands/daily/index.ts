@@ -5,19 +5,19 @@ import { DailyNoteManager } from '../../services/DailyNoteManager.js';
 
 export function registerDailyCommands(program: Command): void {
   const daily = program
-    .command('daily <vault>')
+    .command('daily')
     .description('Daily note operations');
 
   daily
     .command('path')
     .description("Show today's daily note path")
-    .action(async (_opts: unknown, cmd: Command) => {
-      const vaultName = cmd.parent!.args[0];
+    .requiredOption('--vault <name>', 'Vault name')
+    .action(async (opts: { vault: string }) => {
       const mgr = new ConfigManager();
       const cfg = await mgr.load();
-      const v = mgr.getVault(cfg, vaultName);
+      const v = mgr.getVault(cfg, opts.vault);
       if (!v) {
-        console.error(`Vault "${vaultName}" not found`);
+        console.error(`Vault "${opts.vault}" not found`);
         process.exit(1);
       }
 
@@ -30,15 +30,15 @@ export function registerDailyCommands(program: Command): void {
   daily
     .command('append')
     .description('Append content to a section of the daily note')
+    .requiredOption('--vault <name>', 'Vault name')
     .requiredOption('--section <section>', 'Section header (e.g. "## Links")')
     .requiredOption('--content <content>', 'Content to append')
-    .action(async (opts: { section: string; content: string }, cmd: Command) => {
-      const vaultName = cmd.parent!.args[0];
+    .action(async (opts: { vault: string; section: string; content: string }) => {
       const mgr = new ConfigManager();
       const cfg = await mgr.load();
-      const v = mgr.getVault(cfg, vaultName);
+      const v = mgr.getVault(cfg, opts.vault);
       if (!v) {
-        console.error(`Vault "${vaultName}" not found`);
+        console.error(`Vault "${opts.vault}" not found`);
         process.exit(1);
       }
 
