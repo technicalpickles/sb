@@ -84,8 +84,8 @@ export class ConfigManager {
     return filePath;
   }
 
-  getVault(config: Config, name: string): Vault | undefined {
-    const lookup = name === 'default' ? config.default : name;
+  getVault(config: Config, name?: string): Vault | undefined {
+    const lookup = (!name || name === 'default') ? config.default : name;
     if (!lookup) return undefined;
     return config.vaults.find(v => v.name === lookup);
   }

@@ -14,16 +14,20 @@ export function registerNoteCommands(program: Command): void {
   note
     .command('create')
     .description('Create a Zettelkasten note in vault inbox')
-    .requiredOption('--vault <name>', 'Vault name')
+    .option('--vault <name>', 'Vault name (uses default if omitted)')
     .requiredOption('--title <title>', 'Note title')
     .requiredOption('--content <content>', 'Note content')
     .option('--source <source>', 'Provenance source string')
-    .action(async (opts: { vault: string; title: string; content: string; source?: string }) => {
+    .action(async (opts: { vault?: string; title: string; content: string; source?: string }) => {
       const mgr = new ConfigManager();
       const cfg = await mgr.load();
       const v = mgr.getVault(cfg, opts.vault);
       if (!v) {
-        console.error(`Vault "${opts.vault}" not found`);
+        if (!opts.vault) {
+          console.error('No vault specified and no default configured');
+        } else {
+          console.error(`Vault "${opts.vault}" not found`);
+        }
         process.exit(1);
       }
 
@@ -43,15 +47,19 @@ export function registerNoteCommands(program: Command): void {
   note
     .command('move')
     .description('Move note to destination folder')
-    .requiredOption('--vault <name>', 'Vault name')
+    .option('--vault <name>', 'Vault name (uses default if omitted)')
     .requiredOption('--from <path>', 'Source path relative to vault')
     .requiredOption('--to <path>', 'Destination folder relative to vault')
-    .action(async (opts: { vault: string; from: string; to: string }) => {
+    .action(async (opts: { vault?: string; from: string; to: string }) => {
       const mgr = new ConfigManager();
       const cfg = await mgr.load();
       const v = mgr.getVault(cfg, opts.vault);
       if (!v) {
-        console.error(`Vault "${opts.vault}" not found`);
+        if (!opts.vault) {
+          console.error('No vault specified and no default configured');
+        } else {
+          console.error(`Vault "${opts.vault}" not found`);
+        }
         process.exit(1);
       }
 
@@ -66,14 +74,18 @@ export function registerNoteCommands(program: Command): void {
   note
     .command('context')
     .description('Get full routing context for a note')
-    .requiredOption('--vault <name>', 'Vault name')
+    .option('--vault <name>', 'Vault name (uses default if omitted)')
     .requiredOption('--note <path>', 'Note path relative to vault')
-    .action(async (opts: { vault: string; note: string }) => {
+    .action(async (opts: { vault?: string; note: string }) => {
       const mgr = new ConfigManager();
       const cfg = await mgr.load();
       const v = mgr.getVault(cfg, opts.vault);
       if (!v) {
-        console.error(`Vault "${opts.vault}" not found`);
+        if (!opts.vault) {
+          console.error('No vault specified and no default configured');
+        } else {
+          console.error(`Vault "${opts.vault}" not found`);
+        }
         process.exit(1);
       }
 

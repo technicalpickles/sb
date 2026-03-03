@@ -131,6 +131,37 @@ describe('ConfigManager', () => {
     expect(config.default).toBe('primary');
   });
 
+  it('falls back to default vault when no name given', async () => {
+    const claudeDir = join(tempDir, '.claude');
+    await mkdir(claudeDir, { recursive: true });
+    await writeFile(
+      join(claudeDir, 'second-brain.md'),
+      '# Second Brain Configuration\n\n## Vaults\n\n- primary: /path/to/vault\n- work: /path/to/work\n\nDefault: primary'
+    );
+
+    const mgr = new ConfigManager(tempDir);
+    const config = await mgr.load();
+
+    const vault = mgr.getVault(config);
+    expect(vault).toBeDefined();
+    expect(vault!.name).toBe('primary');
+  });
+
+  it('returns undefined when no name given and no default configured', async () => {
+    const claudeDir = join(tempDir, '.claude');
+    await mkdir(claudeDir, { recursive: true });
+    await writeFile(
+      join(claudeDir, 'second-brain.md'),
+      '# Second Brain Configuration\n\n## Vaults\n\n- primary: /path/to/vault'
+    );
+
+    const mgr = new ConfigManager(tempDir);
+    const config = await mgr.load();
+
+    const vault = mgr.getVault(config);
+    expect(vault).toBeUndefined();
+  });
+
   it('returns undefined for unknown vault', async () => {
     const claudeDir = join(tempDir, '.claude');
     await mkdir(claudeDir, { recursive: true });
