@@ -7,9 +7,14 @@ export interface Vault {
   path: string;
 }
 
+export interface VaultSettings {
+  [key: string]: string;
+}
+
 export interface Config {
   vaults: Vault[];
   default?: string;
+  settings: Record<string, VaultSettings>;
 }
 
 export class ConfigNotFoundError extends Error {
@@ -48,13 +53,38 @@ export class ConfigManager {
     const vaults: Vault[] = [];
     let defaultVault: string | undefined;
     let currentSection: string | undefined;
+    let currentSettingsVault: string | undefined;
+    const settings: Record<string, VaultSettings> = {};
 
     for (const line of content.split('\n')) {
       // Track which ## section we're in
       const sectionMatch = line.match(/^## (.+)$/);
       if (sectionMatch) {
         currentSection = sectionMatch[1].trim();
+        currentSettingsVault = undefined;
         continue;
+      }
+
+      // Track ### subsections within Settings
+      if (currentSection === 'Settings') {
+        const subMatch = line.match(/^### (.+)$/);
+        if (subMatch) {
+          // Subsection name like "Primary Vault" - normalize to vault name
+          currentSettingsVault = subMatch[1].trim().toLowerCase().replace(/\s+vault$/, '');
+          if (!settings[currentSettingsVault]) {
+            settings[currentSettingsVault] = {};
+          }
+          continue;
+        }
+
+        // Parse settings entries under a vault subsection
+        if (currentSettingsVault) {
+          const settingMatch = line.match(/^- ([^:]+): (.+)$/);
+          if (settingMatch) {
+            const key = settingMatch[1].trim().toLowerCase().replace(/\s+/g, '_');
+            settings[currentSettingsVault][key] = settingMatch[2].trim();
+          }
+        }
       }
 
       // Parse "- name: /path/to/vault" only inside ## Vaults
@@ -71,7 +101,7 @@ export class ConfigManager {
       }
     }
 
-    return { vaults, default: defaultVault };
+    return { vaults, default: defaultVault, settings };
   }
 
   private expandTilde(filePath: string): string {

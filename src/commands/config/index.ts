@@ -42,6 +42,36 @@ export function registerConfigCommands(program: Command): void {
     });
 
   config
+    .command('qmd-collection')
+    .description('Show qmd collection name for a vault')
+    .option('--vault <name>', 'Vault name (uses default if omitted)')
+    .action(async (opts: { vault?: string }) => {
+      const mgr = new ConfigManager();
+      try {
+        const cfg = await mgr.load();
+        const v = mgr.getVault(cfg, opts.vault);
+        if (!v) {
+          if (!opts.vault) {
+            console.error('No vault specified and no default configured');
+          } else {
+            console.error(`Vault "${opts.vault}" not found`);
+          }
+          process.exit(1);
+        }
+
+        const vaultSettings = cfg.settings[v.name] ?? {};
+        const collection = vaultSettings.qmd_collection ?? 'second-brain';
+        console.log(collection);
+      } catch (err: unknown) {
+        if (err instanceof ConfigNotFoundError) {
+          console.error(err.message);
+          process.exit(1);
+        }
+        throw err;
+      }
+    });
+
+  config
     .command('default')
     .description('Show default vault name')
     .action(async () => {

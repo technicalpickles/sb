@@ -162,6 +162,53 @@ describe('ConfigManager', () => {
     expect(vault).toBeUndefined();
   });
 
+  it('parses settings section with vault subsections', async () => {
+    const claudeDir = join(tempDir, '.claude');
+    await mkdir(claudeDir, { recursive: true });
+    await writeFile(
+      join(claudeDir, 'second-brain.md'),
+      [
+        '# Second Brain Configuration',
+        '',
+        '## Vaults',
+        '',
+        '- primary: /path/to/vault',
+        '',
+        'Default: primary',
+        '',
+        '## Settings',
+        '',
+        '### Primary Vault',
+        '- Daily notes: Fleeting/',
+        '- qmd_collection: my-brain',
+        '',
+      ].join('\n')
+    );
+
+    const mgr = new ConfigManager(tempDir);
+    const config = await mgr.load();
+
+    expect(config.settings.primary).toBeDefined();
+    expect(config.settings.primary.daily_notes).toBe('Fleeting/');
+    expect(config.settings.primary.qmd_collection).toBe('my-brain');
+  });
+
+  it('returns default qmd collection when not configured', async () => {
+    const claudeDir = join(tempDir, '.claude');
+    await mkdir(claudeDir, { recursive: true });
+    await writeFile(
+      join(claudeDir, 'second-brain.md'),
+      '# Second Brain Configuration\n\n## Vaults\n\n- primary: /path/to/vault\n\nDefault: primary'
+    );
+
+    const mgr = new ConfigManager(tempDir);
+    const config = await mgr.load();
+
+    const vaultSettings = config.settings['primary'] ?? {};
+    const collection = vaultSettings.qmd_collection ?? 'second-brain';
+    expect(collection).toBe('second-brain');
+  });
+
   it('returns undefined for unknown vault', async () => {
     const claudeDir = join(tempDir, '.claude');
     await mkdir(claudeDir, { recursive: true });
