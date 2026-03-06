@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { NoteBuilder } from '../src/services/NoteBuilder.js';
+import { ProvenanceService } from '../src/services/ProvenanceService.js';
 import { mkdtemp, mkdir, readdir, readFile, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -80,5 +81,47 @@ describe('NoteBuilder', () => {
 
     expect(content).toContain('# My Great Insight');
     expect(content).toContain('The insight content');
+  });
+
+  it('creates note with auto provenance source', async () => {
+    // Simulate what --source auto does: ProvenanceService -> toSourceString -> NoteBuilder
+    const provenance = new ProvenanceService();
+    const info = provenance.detect();
+    const source = provenance.toSourceString(info);
+
+    const builder = new NoteBuilder({
+      title: 'Auto provenance note',
+      content: 'Content',
+      source,
+    });
+
+    const result = await builder.create(tempDir, 'Inbox');
+    const content = await readFile(result.path, 'utf-8');
+
+    // Running in the sb repo, so should have real git context
+    expect(content).toContain('source: claude-conversation');
+    expect(content).toContain('repo: sb');
+  });
+
+  it('creates note with auto provenance outside git repo', async () => {
+    const nonGitDir = await mkdtemp(join(tmpdir(), 'sb-test-nogit-'));
+    try {
+      const provenance = new ProvenanceService(nonGitDir);
+      const info = provenance.detect();
+      const source = provenance.toSourceString(info);
+
+      const builder = new NoteBuilder({
+        title: 'No git note',
+        content: 'Content',
+        source,
+      });
+
+      const result = await builder.create(tempDir, 'Inbox');
+      const content = await readFile(result.path, 'utf-8');
+
+      expect(content).toContain('source: manual');
+    } finally {
+      await rm(nonGitDir, { recursive: true });
+    }
   });
 });

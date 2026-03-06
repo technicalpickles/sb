@@ -1,6 +1,7 @@
 import { readFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import { VaultDiscovery } from './VaultDiscovery.js';
+import { parseFrontmatter, extractTitle as extractTitleFromBody } from '../utils/markdown.js';
 
 export interface NoteMetadata {
   path: string;
@@ -37,8 +38,8 @@ export class NoteAnalyzer {
     const fullPath = join(this.vaultPath, notePath);
     const content = await readFile(fullPath, 'utf-8');
 
-    const { frontmatter, body } = this.parseFrontmatter(content);
-    const title = this.extractTitle(body);
+    const { frontmatter, body } = parseFrontmatter(content);
+    const title = extractTitleFromBody(body);
     const keywords = this.extractKeywords(title, body);
 
     const discovery = new VaultDiscovery(this.vaultPath);
@@ -61,34 +62,6 @@ export class NoteAnalyzer {
       note: { path: notePath, title, content: body, keywords, frontmatter },
       destinations,
     };
-  }
-
-  private parseFrontmatter(content: string): {
-    frontmatter: Record<string, string>;
-    body: string;
-  } {
-    if (!content.startsWith('---\n')) {
-      return { frontmatter: {}, body: content };
-    }
-
-    const endIdx = content.indexOf('\n---\n', 4);
-    if (endIdx === -1) return { frontmatter: {}, body: content };
-
-    const fmBlock = content.slice(4, endIdx);
-    const frontmatter: Record<string, string> = {};
-    for (const line of fmBlock.split('\n')) {
-      const colonIdx = line.indexOf(': ');
-      if (colonIdx > 0) {
-        frontmatter[line.slice(0, colonIdx)] = line.slice(colonIdx + 2);
-      }
-    }
-
-    return { frontmatter, body: content.slice(endIdx + 5) };
-  }
-
-  private extractTitle(body: string): string {
-    const match = body.match(/^#\s+(.+)$/m);
-    return match ? match[1] : 'Untitled';
   }
 
   private extractKeywords(title: string, body: string): string[] {

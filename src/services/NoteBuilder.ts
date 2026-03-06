@@ -30,6 +30,40 @@ export class NoteBuilder {
     this.provenance = this.parseSource(opts.source);
   }
 
+  preview(vaultPath: string, inboxFolder: string): { path: string; filename: string; content: string } {
+    const now = new Date();
+    const timestamp = this.formatTimestamp(now);
+    const isoTimestamp = now.toISOString().replace(/\.\d+Z$/, 'Z');
+
+    const slug = this.title
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
+
+    const filename = `${timestamp} ${slug}.md`;
+    const path = join(vaultPath, inboxFolder, filename);
+
+    const lines = [
+      '---',
+      `captured: ${isoTimestamp}`,
+      `source: ${this.provenance.source}`,
+      `repo: ${this.provenance.repo ?? 'none'}`,
+      `branch: ${this.provenance.branch ?? 'none'}`,
+      `commit: ${this.provenance.commit ?? 'none'}`,
+      '---',
+      '',
+      `# ${this.title}`,
+      '',
+      this.content,
+      '',
+      '---',
+      '*Captured via sb note create*',
+      '',
+    ];
+
+    return { path, filename, content: lines.join('\n') };
+  }
+
   async create(vaultPath: string, inboxFolder: string): Promise<CreatedNote> {
     const now = new Date();
     const timestamp = this.formatTimestamp(now);
