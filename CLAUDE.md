@@ -17,25 +17,32 @@ A CLI for Obsidian vault management, designed to support the second-brain Claude
 src/
 ├── index.ts              # CLI entry point
 ├── commands/             # Command implementations
-│   ├── config/           # config show, vaults, default
+│   ├── config/           # config show, vaults, default, qmd-collection
 │   ├── vault/            # vault info, obsidian, structure
-│   ├── note/             # note create, context, move
-│   └── daily/            # daily path, append
+│   ├── note/             # note create, read, context, move
+│   ├── daily/            # daily path, append
+│   ├── inbox/            # inbox list
+│   ├── init/             # init (vault setup)
+│   ├── provenance/       # provenance (git context)
+│   ├── permissions/      # permissions (Claude Code entries)
+│   └── describe/         # describe (schema introspection)
 ├── services/             # Business logic
 │   ├── ConfigManager.ts  # Parse ~/.claude/second-brain.md
 │   ├── ObsidianParser.ts # Parse .obsidian/*.json
 │   ├── VaultDiscovery.ts # PARA folder discovery
-│   ├── NoteBuilder.ts    # Zettelkasten note creation
+│   ├── NoteBuilder.ts    # Zettelkasten note creation + preview
 │   ├── NoteAnalyzer.ts   # Keyword extraction, routing context
-│   └── DailyNoteManager.ts
+│   ├── DailyNoteManager.ts
+│   └── ProvenanceService.ts # Git context detection
 ├── types/
 │   └── index.ts
 └── utils/
     ├── zettelkasten.ts   # Filename generation
-    └── markdown.ts       # Frontmatter parsing
+    ├── markdown.ts       # Frontmatter parsing, section/link extraction
+    └── validation.ts     # Path validation, traversal protection
 test/
 ├── fixtures/             # Mock vault structures
-└── commands/             # Command tests
+└── *.test.ts             # Test files per command/feature
 ```
 
 ## Development Workflow
@@ -56,8 +63,13 @@ npm run test:watch   # Watch mode
 
 ### Output
 - Commands output JSON for agent consumption
-- Human-readable output for interactive use
 - Exit code 0 (success), 1 (failure)
+- Mutating commands support `--dry-run` for safe previews
+- `sb describe` provides runtime schema introspection
+
+### Input Validation
+- Path arguments validated against traversal (`../`), control characters, URL-encoding
+- `validatePath()` and `validateWithinVault()` in `utils/validation.ts`
 
 ### Testing
 - Vitest with temp directories for vault fixtures
@@ -67,6 +79,8 @@ npm run test:watch   # Watch mode
 ## Key Design Decisions
 
 1. **Separation of concerns**: CLI gathers information and executes actions. Agent makes decisions.
-2. **Config location**: `~/.claude/second-brain.md` (same as plugin)
-3. **Zettelkasten naming**: `YYYYMMDDHHmm slug.md` format
-4. **PARA discovery**: Heuristic-based folder type detection (Areas/, Resources/, Projects/)
+2. **Agent-first design**: JSON output, `--dry-run`, schema introspection, input validation
+3. **Config location**: `~/.claude/second-brain.md` (same as plugin)
+4. **Zettelkasten naming**: `YYYYMMDDHHmm slug.md` format
+5. **PARA discovery**: Heuristic-based folder type detection (Areas/, Resources/, Projects/)
+6. **Native Claude tools**: Agents use Claude's Read/Write/Edit for vault files, sb handles config and structure

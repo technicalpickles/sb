@@ -61,6 +61,11 @@ Commands:
   vault           Vault operations
   note            Note operations
   daily           Daily note operations
+  provenance      Show git context for the current directory
+  inbox           Inbox operations
+  permissions     Show Claude Code permission entries for a vault
+  init            Initialize vault configuration
+  describe        Output command schema as JSON for agent introspection
   help [command]  display help for command
 ```
 
@@ -106,6 +111,24 @@ Outputs configured vaults as JSON array.
 ```
 
 **BUG:** The parser matches any `- key: value` line in the config file, not just lines under `## Vaults`. A config with a `## Settings` section containing lines like `- Daily notes: Fleeting/` will produce spurious vault entries. See [Bugs](#bugs).
+
+### `sb config qmd-collection`
+
+Shows the qmd (semantic search) collection name for a vault.
+
+```
+sb config qmd-collection --vault test
+```
+
+**Output:**
+
+```
+second-brain
+```
+
+**Behavior:**
+- Reads from `## Settings` > `### Vault Name` > `qmd_collection` in the config
+- Defaults to `second-brain` if not configured
 
 ### `sb config default`
 
@@ -246,6 +269,7 @@ Options:
 Commands:
   create [options]   Create a Zettelkasten note in vault inbox
   move [options]     Move note to destination folder
+  read [options]     Read and parse a vault note as structured JSON
   context [options]  Get full routing context for a note
   help [command]     display help for command
 ```
@@ -322,6 +346,53 @@ Use path-based versioning for external APIs
 
 **Source string format:** `conversation:repo=NAME,branch=NAME,commit=HASH`
 
+#### With `--source auto`
+
+Detects git context from the current directory automatically.
+
+```
+sb note create --vault test --title "API insight" \
+  --content "Something useful" --source auto
+```
+
+**Created file contents:**
+
+```markdown
+---
+captured: 2026-03-06T16:49:58Z
+source: claude-conversation
+repo: sb
+branch: main
+commit: abc1234
+---
+
+# API insight
+
+Something useful
+
+---
+*Captured via sb note create*
+```
+
+#### With `--dry-run`
+
+Shows what would be created without writing to disk.
+
+```
+sb note create --vault test --title "Test" --content "Content" --dry-run
+```
+
+**Output:**
+
+```json
+{
+  "dryRun": true,
+  "path": "/absolute/path/to/vault/📫 Inbox/202603061200 test.md",
+  "filename": "202603061200 test.md",
+  "content": "---\ncaptured: ...\n---\n\n# Test\n\nContent\n\n---\n*Captured via sb note create*\n"
+}
+```
+
 #### Missing required options
 
 ```
@@ -345,6 +416,50 @@ Vault "nonexistent" not found
 ```
 
 Exit code: 1.
+
+### `sb note read`
+
+Read and parse a vault note as structured JSON. Returns frontmatter, sections, wiki links, and content.
+
+```
+sb note read --vault test --note "Resources/Tools/202601150930 redis-setup-guide.md"
+```
+
+**Output:**
+
+```json
+{
+  "path": "Resources/Tools/202601150930 redis-setup-guide.md",
+  "title": "redis-setup-guide",
+  "frontmatter": null,
+  "sections": ["# redis-setup-guide"],
+  "links": [],
+  "content": "# redis-setup-guide\n\n..."
+}
+```
+
+**Behavior:**
+- Parses YAML frontmatter between `---` fences
+- Extracts title from first `# Heading`, falls back to filename
+- Lists all section headers (any `#` line)
+- Extracts `[[wiki links]]` from the full content
+- Input paths are validated against traversal attacks
+
+### `sb note move --dry-run`
+
+```
+sb note move --vault test --from "Inbox/test.md" --to "Areas/" --dry-run
+```
+
+**Output:**
+
+```json
+{
+  "dryRun": true,
+  "from": "Inbox/test.md",
+  "to": "Areas/test.md"
+}
+```
 
 ### `sb note context`
 
@@ -503,6 +618,239 @@ sb daily append --vault test --section "## Links" \
 - Creates the section at the end of the file if not found
 - Preserves existing content order
 
+### `sb daily append --dry-run`
+
+```
+sb daily append --vault test --section "## Links" --content "test" --dry-run
+```
+
+**Output:**
+
+```json
+{
+  "dryRun": true,
+  "path": "/absolute/path/to/vault/Fleeting/2026-03-06.md",
+  "section": "## Links",
+  "content": "test"
+}
+```
+
+---
+
+## Inbox Commands
+
+### `sb inbox list`
+
+Lists notes in the vault's inbox folder.
+
+```
+sb inbox list --vault test
+```
+
+**Output:**
+
+```json
+[
+  {
+    "filename": "202603061200 my-insight.md",
+    "timestamp": "202603061200",
+    "title": "my-insight"
+  }
+]
+```
+
+**Behavior:**
+- Reads inbox folder from `.obsidian/` config
+- Parses Zettelkasten filenames (`YYYYMMDDHHmm slug.md`)
+- Non-ZK files still appear (timestamp empty, title from filename)
+- Sorted alphabetically
+
+### `sb inbox list --detail`
+
+Includes parsed frontmatter for each note.
+
+```
+sb inbox list --vault test --detail
+```
+
+**Output:**
+
+```json
+[
+  {
+    "filename": "202603061200 my-insight.md",
+    "timestamp": "202603061200",
+    "title": "my-insight",
+    "frontmatter": {
+      "captured": "2026-03-06T12:00:00Z",
+      "source": "manual"
+    }
+  }
+]
+```
+
+---
+
+## Provenance
+
+### `sb provenance`
+
+Shows git context for the current directory. Useful for debugging `--source auto` and scripting.
+
+```
+sb provenance
+```
+
+**Output:**
+
+```json
+{
+  "repo": "sb",
+  "branch": "main",
+  "commit": "abc1234"
+}
+```
+
+**Behavior:**
+- Detects repo name from `git remote get-url origin` (handles worktrees correctly)
+- Falls back to basename of working directory if no remote
+- Returns empty strings for non-git directories
+
+---
+
+## Permissions
+
+### `sb permissions`
+
+Generates Claude Code permission entries for vault access.
+
+```
+sb permissions --vault test
+```
+
+**Output:**
+
+```json
+{
+  "vault": "test",
+  "path": "/absolute/path/to/vault",
+  "permissions": [
+    "Read(/absolute/path/to/vault/**/*.md)",
+    "Write(/absolute/path/to/vault/**/*.md)",
+    "Edit(/absolute/path/to/vault/**/*.md)"
+  ]
+}
+```
+
+---
+
+## Init
+
+### `sb init`
+
+Initializes vault configuration. Supports both interactive and non-interactive modes.
+
+**Non-interactive:**
+
+```
+sb init --name primary --path ~/Vaults/my-vault --scaffold
+```
+
+**Output:**
+
+```json
+{
+  "vault": "primary",
+  "path": "~/Vaults/my-vault",
+  "obsidian": true,
+  "config": "/Users/you/.claude/second-brain.md",
+  "scaffolded": true,
+  "permissions": [
+    "Read(~/Vaults/my-vault/**/*.md)",
+    "Write(~/Vaults/my-vault/**/*.md)",
+    "Edit(~/Vaults/my-vault/**/*.md)"
+  ]
+}
+```
+
+**Options:**
+- `--name <name>` - Vault name (prompts if omitted)
+- `--path <path>` - Path to Obsidian vault (prompts if omitted)
+- `--scaffold` - Create CLAUDE.md in vault from template
+- `--dry-run` - Show what would be done without writing
+
+**Behavior:**
+- Validates path exists and has `.obsidian/` directory
+- Parses `.obsidian/` settings to discover inbox, daily notes, templates
+- Writes vault entry to `~/.claude/second-brain.md` (creates if needed)
+- Scaffolds vault CLAUDE.md with discovered structure
+- Reports permissions needed for Claude Code
+
+### `sb init --dry-run`
+
+```
+sb init --name test --path ~/Vaults/my-vault --dry-run
+```
+
+**Output:**
+
+```json
+{
+  "dryRun": true,
+  "vault": "test",
+  "path": "~/Vaults/my-vault",
+  "obsidian": true,
+  "scaffold": false,
+  "permissions": [
+    "Read(~/Vaults/my-vault/**/*.md)",
+    "Write(~/Vaults/my-vault/**/*.md)",
+    "Edit(~/Vaults/my-vault/**/*.md)"
+  ]
+}
+```
+
+---
+
+## Describe
+
+### `sb describe`
+
+Outputs the full command schema as JSON for agent introspection.
+
+```
+sb describe
+```
+
+**Output (abbreviated):**
+
+```json
+{
+  "name": "sb",
+  "description": "Second Brain CLI for Obsidian vault management",
+  "options": [...],
+  "subcommands": [
+    {
+      "name": "config",
+      "description": "Global configuration operations",
+      "subcommands": [
+        { "name": "show", "description": "Show raw config file", "options": [] },
+        { "name": "vaults", "description": "List vaults as JSON", "options": [] },
+        ...
+      ]
+    },
+    ...
+  ]
+}
+```
+
+### `sb describe --command <name>`
+
+Describe a specific command and its subcommands.
+
+```
+sb describe --command note
+```
+
 ---
 
 ## Bugs Found
@@ -571,15 +919,23 @@ ConfigNotFoundError: Second brain not configured. Run /second-brain:setup first.
 ## Test Results
 
 ```
- ✓ test/config.test.ts    (7 tests)
- ✓ test/vault.test.ts     (7 tests)
- ✓ test/note.test.ts      (5 tests)
- ✓ test/daily.test.ts     (6 tests)
- ✓ test/context.test.ts   (5 tests)
- ✓ test/integration.test.ts (3 tests)
+ ✓ test/config.test.ts       (9 tests)
+ ✓ test/vault.test.ts        (7 tests)
+ ✓ test/note.test.ts         (7 tests)
+ ✓ test/note-read.test.ts    (5 tests)
+ ✓ test/daily.test.ts        (6 tests)
+ ✓ test/context.test.ts      (5 tests)
+ ✓ test/integration.test.ts  (3 tests)
+ ✓ test/provenance.test.ts   (4 tests)
+ ✓ test/inbox.test.ts        (6 tests)
+ ✓ test/permissions.test.ts  (2 tests)
+ ✓ test/init.test.ts         (7 tests)
+ ✓ test/validation.test.ts   (6 tests)
+ ✓ test/dry-run.test.ts      (2 tests)
+ ✓ test/describe.test.ts     (3 tests)
 
- Test Files  6 passed (6)
-      Tests  33 passed (33)
+ Test Files  14 passed (14)
+      Tests  75 passed (75)
 ```
 
-All 33 tests pass.
+All 75 tests pass.
