@@ -37,7 +37,8 @@ export function registerDailyCommands(program: Command): void {
     .option('--vault <name>', 'Vault name (uses default if omitted)')
     .requiredOption('--section <section>', 'Section header (e.g. "## Links")')
     .requiredOption('--content <content>', 'Content to append')
-    .action(async (opts: { vault?: string; section: string; content: string }) => {
+    .option('--dry-run', 'Show what would be appended without writing')
+    .action(async (opts: { vault?: string; section: string; content: string; dryRun?: boolean }) => {
       const mgr = new ConfigManager();
       const cfg = await mgr.load();
       const v = mgr.getVault(cfg, opts.vault);
@@ -54,6 +55,11 @@ export function registerDailyCommands(program: Command): void {
       const obsConfig = await parser.load();
       const manager = new DailyNoteManager(v.path, obsConfig);
       const dailyPath = manager.dailyPath();
+
+      if (opts.dryRun) {
+        console.log(JSON.stringify({ dryRun: true, path: dailyPath, section: opts.section, content: opts.content }, null, 2));
+        return;
+      }
 
       await manager.appendToSection(dailyPath, opts.section, opts.content);
       console.log(JSON.stringify({ path: dailyPath, section: opts.section }));
