@@ -24,4 +24,8 @@ jobs:
           git config --global user.name "CI"
           git config --global user.email "ci@test"
       - run: npm test
+      # Clear the auth token so npm uses OIDC instead of the GitHub token
+      - run: npm config delete '//registry.npmjs.org/:_authToken' --location user
       - run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ''
