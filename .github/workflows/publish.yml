@@ -4,19 +4,19 @@ on:
   release:
     types: [published]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     environment: release
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -24,8 +24,5 @@ jobs:
           git config --global user.name "CI"
           git config --global user.email "ci@test"
       - run: npm test
-      # Clear the auth token so npm uses OIDC instead of the GitHub token
-      - run: npm config delete '//registry.npmjs.org/:_authToken' --location user
-      - run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ''
+      - run: npm config set registry https://registry.npmjs.org/
+      - run: npm publish --access public
