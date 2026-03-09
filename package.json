@@ -24,7 +24,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/technicalpickles/sb"
+    "url": "git+https://github.com/technicalpickles/sb.git"
   },
   "engines": {
     "node": ">=20"
@@ -35,7 +35,8 @@
     "LICENSE"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "dependencies": {
     "chalk": "^5.6.2",
