@@ -24,4 +24,5 @@ jobs:
           git config --global user.name "CI"
           git config --global user.email "ci@test"
       - run: npm test
+      - run: npm install -g npm@latest
       - run: npm publish --access public --provenance
