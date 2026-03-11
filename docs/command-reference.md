@@ -276,7 +276,7 @@ Commands:
 
 ### `sb note create`
 
-Creates a Zettelkasten note in the vault's inbox folder.
+Creates a Zettelkasten note in the vault's inbox folder. Content is optional: omit `--content` to create a frontmatter-only stub, then use Claude's native Edit/Write tools to fill in the body. This two-step flow is useful when content is long or needs formatting that's awkward to pass as a CLI flag.
 
 ```
 sb note create --vault test --title "Redis caching patterns" \
@@ -312,10 +312,29 @@ commit: none
 # Redis caching patterns
 
 Redis excels at TTL-based cache invalidation for session data
-
----
-*Captured via sb note create*
 ```
+
+#### Without content (two-step flow)
+
+```
+sb note create --vault test --title "Redis caching patterns"
+```
+
+**Created file contents:**
+
+```markdown
+---
+captured: 2026-02-14T16:47:50Z
+source: manual
+repo: none
+branch: none
+commit: none
+---
+
+# Redis caching patterns
+```
+
+The returned `path` can then be used with Claude's Edit/Write tools to add content.
 
 #### With provenance
 
@@ -339,9 +358,6 @@ commit: abc123
 # API versioning insight
 
 Use path-based versioning for external APIs
-
----
-*Captured via sb note create*
 ```
 
 **Source string format:** `conversation:repo=NAME,branch=NAME,commit=HASH`
@@ -369,9 +385,6 @@ commit: abc1234
 # API insight
 
 Something useful
-
----
-*Captured via sb note create*
 ```
 
 #### With `--dry-run`
@@ -389,7 +402,7 @@ sb note create --vault test --title "Test" --content "Content" --dry-run
   "dryRun": true,
   "path": "/absolute/path/to/vault/📫 Inbox/202603061200 test.md",
   "filename": "202603061200 test.md",
-  "content": "---\ncaptured: ...\n---\n\n# Test\n\nContent\n\n---\n*Captured via sb note create*\n"
+  "content": "---\ncaptured: ...\n---\n\n# Test\n\nContent\n"
 }
 ```
 

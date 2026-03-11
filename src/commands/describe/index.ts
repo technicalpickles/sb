@@ -18,7 +18,7 @@ function describeCommand(cmd: Command): CommandSchema {
   const options: OptionSchema[] = cmd.options.map((opt) => ({
     flags: opt.flags,
     description: opt.description ?? '',
-    required: opt.required ?? false,
+    required: opt.mandatory ?? false,
     ...(opt.defaultValue !== undefined ? { defaultValue: opt.defaultValue } : {}),
   }));
 
