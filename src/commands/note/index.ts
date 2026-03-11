@@ -19,10 +19,10 @@ export function registerNoteCommands(program: Command): void {
     .description('Create a Zettelkasten note in vault inbox')
     .option('--vault <name>', 'Vault name (uses default if omitted)')
     .requiredOption('--title <title>', 'Note title')
-    .requiredOption('--content <content>', 'Note content')
+    .option('--content <content>', 'Note content (omit for frontmatter-only)')
     .option('--source <source>', 'Provenance source string')
     .option('--dry-run', 'Show what would be created without writing')
-    .action(async (opts: { vault?: string; title: string; content: string; source?: string; dryRun?: boolean }) => {
+    .action(async (opts: { vault?: string; title: string; content?: string; source?: string; dryRun?: boolean }) => {
       const mgr = new ConfigManager();
       const cfg = await mgr.load();
       const v = mgr.getVault(cfg, opts.vault);

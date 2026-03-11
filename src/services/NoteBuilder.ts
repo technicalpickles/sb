@@ -3,7 +3,7 @@ import { join } from 'path';
 
 export interface NoteOptions {
   title: string;
-  content: string;
+  content?: string;
   source?: string;
 }
 
@@ -26,7 +26,7 @@ export class NoteBuilder {
 
   constructor(opts: NoteOptions) {
     this.title = opts.title;
-    this.content = opts.content;
+    this.content = opts.content ?? '';
     this.provenance = this.parseSource(opts.source);
   }
 
@@ -54,12 +54,11 @@ export class NoteBuilder {
       '',
       `# ${this.title}`,
       '',
-      this.content,
-      '',
-      '---',
-      '*Captured via sb note create*',
-      '',
     ];
+
+    if (this.content) {
+      lines.push(this.content, '');
+    }
 
     return { path, filename, content: lines.join('\n') };
   }
@@ -88,12 +87,11 @@ export class NoteBuilder {
       '',
       `# ${this.title}`,
       '',
-      this.content,
-      '',
-      '---',
-      '*Captured via sb note create*',
-      '',
     ];
+
+    if (this.content) {
+      lines.push(this.content, '');
+    }
 
     await writeFile(path, lines.join('\n'));
 

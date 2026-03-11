@@ -103,6 +103,26 @@ describe('NoteBuilder', () => {
     expect(content).toContain('repo: sb');
   });
 
+  it('creates note with frontmatter only when no content provided', async () => {
+    const builder = new NoteBuilder({
+      title: 'Frontmatter only note',
+    });
+
+    const result = await builder.create(tempDir, 'Inbox');
+    const content = await readFile(result.path, 'utf-8');
+
+    // Should have frontmatter
+    expect(content).toContain('---');
+    expect(content).toContain('captured:');
+    expect(content).toContain('source: manual');
+
+    // Should have title heading
+    expect(content).toContain('# Frontmatter only note');
+
+    // Should NOT have the trailing "Captured via" boilerplate
+    expect(content).not.toContain('Captured via');
+  });
+
   it('creates note with auto provenance outside git repo', async () => {
     const nonGitDir = await mkdtemp(join(tmpdir(), 'sb-test-nogit-'));
     try {
