@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import { ConfigNotFoundError } from './services/ConfigManager.js';
 import { registerConfigCommands } from './commands/config/index.js';
 import { registerVaultCommands } from './commands/vault/index.js';
 import { registerNoteCommands } from './commands/note/index.js';
@@ -27,4 +28,14 @@ registerPermissionsCommands(program);
 registerInitCommands(program);
 registerDescribeCommands(program);
 
-program.parse();
+program.parseAsync().catch((err: unknown) => {
+  // Known user-facing errors get a friendly one-liner, no stacktrace.
+  if (err instanceof ConfigNotFoundError) {
+    console.error(err.message);
+    process.exit(1);
+  }
+
+  // Genuinely unexpected errors: surface the stack so we can debug them.
+  console.error(err instanceof Error ? (err.stack ?? err.message) : String(err));
+  process.exit(1);
+});
