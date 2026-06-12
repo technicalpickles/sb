@@ -10,11 +10,12 @@ interface RunResult {
   stderr: string;
 }
 
-// Run the CLI from source via tsx with HOME pointed at an empty dir so config is missing.
+// Run the built CLI with HOME pointed at an empty dir so config is missing.
+// Mirrors test/init.test.ts: exercise the compiled binary, not the source.
 function runCli(args: string[], home: string): RunResult {
+  const sbPath = join(process.cwd(), 'dist', 'index.js');
   try {
-    const stdout = execFileSync('npx', ['tsx', 'src/index.ts', ...args], {
-      cwd: process.cwd(),
+    const stdout = execFileSync('node', [sbPath, ...args], {
       encoding: 'utf-8',
       env: { ...process.env, HOME: home },
       stdio: ['ignore', 'pipe', 'pipe'],
