@@ -25,6 +25,16 @@ export class NoteBuilder {
   private provenance: Provenance;
 
   constructor(opts: NoteOptions) {
+    // Distinguish "no content" (frontmatter-only note, gt-904u) from
+    // "content explicitly provided but empty/whitespace" (gt-eak9). The latter
+    // means the caller intended a body but supplied nothing (e.g. a failed
+    // `--content "$(cat ...)"` command substitution), so refuse rather than
+    // silently write an empty note.
+    if (opts.content !== undefined && opts.content.trim().length === 0) {
+      throw new Error(
+        '--content was provided but is empty. Omit --content for a frontmatter-only note, or pass real content.',
+      );
+    }
     this.title = opts.title;
     this.content = opts.content ?? '';
     this.provenance = this.parseSource(opts.source);

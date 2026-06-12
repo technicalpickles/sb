@@ -123,6 +123,28 @@ describe('NoteBuilder', () => {
     expect(content).not.toContain('Captured via');
   });
 
+  it('throws when content is provided but empty (gt-eak9)', () => {
+    expect(
+      () => new NoteBuilder({ title: 'Empty content note', content: '' }),
+    ).toThrow(/--content was provided but is empty/);
+  });
+
+  it('throws when content is provided but whitespace-only (gt-eak9)', () => {
+    expect(
+      () => new NoteBuilder({ title: 'Whitespace content note', content: '   \n\t ' }),
+    ).toThrow(/--content was provided but is empty/);
+  });
+
+  it('allows omitting content for a frontmatter-only note (gt-904u regression)', async () => {
+    // Omitting content (undefined) must stay supported, distinct from empty string.
+    const builder = new NoteBuilder({ title: 'Intentionally empty body' });
+    const result = await builder.create(tempDir, 'Inbox');
+    const content = await readFile(result.path, 'utf-8');
+
+    expect(content).toContain('# Intentionally empty body');
+    expect(content).not.toContain('--content was provided');
+  });
+
   it('creates note with auto provenance outside git repo', async () => {
     const nonGitDir = await mkdtemp(join(tmpdir(), 'sb-test-nogit-'));
     try {
