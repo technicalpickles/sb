@@ -46,11 +46,17 @@ export function registerNoteCommands(program: Command): void {
         source = provenance.toSourceString(info);
       }
 
-      const builder = new NoteBuilder({
-        title: opts.title,
-        content: opts.content,
-        source,
-      });
+      let builder: NoteBuilder;
+      try {
+        builder = new NoteBuilder({
+          title: opts.title,
+          content: opts.content,
+          source,
+        });
+      } catch (err: unknown) {
+        console.error(err instanceof Error ? err.message : String(err));
+        process.exit(1);
+      }
 
       if (opts.dryRun) {
         const preview = builder.preview(v.path, inboxFolder);
