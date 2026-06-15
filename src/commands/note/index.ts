@@ -3,6 +3,7 @@ import { ConfigManager } from '../../services/ConfigManager.js';
 import { NoteBuilder } from '../../services/NoteBuilder.js';
 import { NoteAnalyzer } from '../../services/NoteAnalyzer.js';
 import { ObsidianParser } from '../../services/ObsidianParser.js';
+import { NoteLister } from '../../services/NoteLister.js';
 import { ProvenanceService } from '../../services/ProvenanceService.js';
 import { parseFrontmatter, extractTitle, extractSections, extractWikiLinks } from '../../utils/markdown.js';
 import { validatePath, validateWithinVault } from '../../utils/validation.js';
@@ -66,6 +67,30 @@ export function registerNoteCommands(program: Command): void {
 
       const result = await builder.create(v.path, inboxFolder);
       console.log(JSON.stringify(result, null, 2));
+    });
+
+  note
+    .command('list')
+    .description('List notes across the vault, optionally filtered by frontmatter type')
+    .option('--vault <name>', 'Vault name (uses default if omitted)')
+    .option('--type <type>', 'Filter to notes whose frontmatter type equals this value')
+    .option('--detail', 'Include parsed frontmatter for each note')
+    .action(async (opts: { vault?: string; type?: string; detail?: boolean }) => {
+      const mgr = new ConfigManager();
+      const cfg = await mgr.load();
+      const v = mgr.getVault(cfg, opts.vault);
+      if (!v) {
+        if (!opts.vault) {
+          console.error('No vault specified and no default configured');
+        } else {
+          console.error(`Vault "${opts.vault}" not found`);
+        }
+        process.exit(1);
+      }
+
+      const lister = new NoteLister(v.path);
+      const results = await lister.list({ type: opts.type, detail: opts.detail });
+      console.log(JSON.stringify(results, null, 2));
     });
 
   note
