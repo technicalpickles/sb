@@ -1,0 +1,33 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # release-please maintains a release PR that bumps package.json +
+      # package-lock.json and generates CHANGELOG.md from conventional commits.
+      # Merging that PR creates the git tag + GitHub release. The release
+      # 'published' event then fires publish.yml, which runs npm publish via
+      # OIDC trusted publishing. release-please itself does NOT publish to npm,
+      # so there is no double-publish.
+      #
+      # token: a release created with the default GITHUB_TOKEN will NOT trigger
+      # downstream workflows (GitHub blocks this to avoid recursive runs), so
+      # publish.yml would never fire. Provide a PAT or GitHub App token via the
+      # RELEASE_PLEASE_TOKEN secret to make the cut release trigger publish.yml.
+      # This token only creates the PR/release/tag; it is unrelated to npm auth,
+      # so the tokenless OIDC publish path in publish.yml is unaffected. Without
+      # the secret the action still runs and opens release PRs using GITHUB_TOKEN.
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
