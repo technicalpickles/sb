@@ -114,4 +114,75 @@ describe('VaultDiscovery', () => {
 
     expect(structure.destinations).toHaveLength(0);
   });
+
+  it('discovers a Johnny Decimal category with no ID subfolders', async () => {
+    const area = '60-69 Software & Engineering';
+    const category = '67 Tools & developer experience';
+    await mkdir(join(tempDir, area, category), { recursive: true });
+    // A loose note sitting directly in the category, no ID subfolders.
+    await writeFile(join(tempDir, area, category, 'some-tool.md'), '# note');
+
+    const discovery = new VaultDiscovery(tempDir);
+    const structure = await discovery.discover();
+
+    const cat = structure.destinations.find(d => d.path === `${area}/${category}/`);
+    expect(cat).toBeDefined();
+    expect(cat?.type).toBe('jd');
+    expect(cat?.code).toBe('67');
+    expect(cat?.area).toBe(area);
+  });
+
+  it('discovers PARA and Johnny Decimal side by side', async () => {
+    const area = '60-69 Software & Engineering';
+    const category = '67 Tools & developer experience';
+    const id = '67.01 git';
+    await mkdir(join(tempDir, 'Areas', 'Health'), { recursive: true });
+    await mkdir(join(tempDir, area, category, id), { recursive: true });
+
+    const discovery = new VaultDiscovery(tempDir);
+    const structure = await discovery.discover();
+
+    // PARA dest is present and unchanged (no JD metadata).
+    const para = structure.destinations.find(d => d.path === 'Areas/Health/');
+    expect(para).toBeDefined();
+    expect(para?.type).toBe('area');
+    expect(para?.code).toBeUndefined();
+    expect(para?.area).toBeUndefined();
+
+    // Category dest.
+    const cat = structure.destinations.find(d => d.path === `${area}/${category}/`);
+    expect(cat).toBeDefined();
+    expect(cat?.type).toBe('jd');
+    expect(cat?.code).toBe('67');
+    expect(cat?.area).toBe(area);
+
+    // ID dest, full three-level path.
+    const idDest = structure.destinations.find(d => d.code === '67.01');
+    expect(idDest).toBeDefined();
+    expect(idDest?.type).toBe('jd');
+    expect(idDest?.path).toBe(`${area}/${category}/${id}/`);
+    expect(idDest?.area).toBe(area);
+  });
+
+  it('does not mis-emit an ID folder as a category', async () => {
+    const area = '60-69 Software & Engineering';
+    const category = '67 Tools & developer experience';
+    const id = '67.01 git';
+    await mkdir(join(tempDir, area, category, id), { recursive: true });
+
+    const discovery = new VaultDiscovery(tempDir);
+    const structure = await discovery.discover();
+
+    // The ID folder must never produce a bare category-style dest at the
+    // category level (i.e. no dest pointing directly at '<area>/67.01 git/').
+    const miscategorized = structure.destinations.find(
+      d => d.path === `${area}/${id}/`
+    );
+    expect(miscategorized).toBeUndefined();
+
+    // Only one dest carries code '67', and it is the real category.
+    const codeSeven = structure.destinations.filter(d => d.code === '67');
+    expect(codeSeven).toHaveLength(1);
+    expect(codeSeven[0].path).toBe(`${area}/${category}/`);
+  });
 });
