@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execFileSync } from 'child_process';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, rm, readFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -54,5 +54,31 @@ describe('CLI missing-config error handling', () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('not configured');
     expect(result.stderr).not.toMatch(/\n\s+at\s/);
+  });
+});
+
+describe('CLI --version', () => {
+  it('reports the version from package.json', async () => {
+    const pkg = JSON.parse(
+      await readFile(join(process.cwd(), 'package.json'), 'utf-8'),
+    ) as { version: string };
+
+    const result = runCli(['--version'], tmpdir());
+
+    expect(result.code).toBe(0);
+    expect(result.stdout.trim()).toBe(pkg.version);
+  });
+
+  it('resolves the package version regardless of cwd', () => {
+    // Run from a dir with no package.json of its own: the version must come
+    // from the package's own package.json (resolved via import.meta.url),
+    // not from whatever happens to be in cwd.
+    const sbPath = join(process.cwd(), 'dist', 'index.js');
+    const stdout = execFileSync('node', [sbPath, '--version'], {
+      encoding: 'utf-8',
+      cwd: tmpdir(),
+    });
+
+    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
   });
 });
