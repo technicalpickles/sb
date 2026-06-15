@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/technicalpickles/sb/compare/v0.3.0...v0.3.1) (2026-06-15)
+
+
+### Bug Fixes
+
+* read --version from package.json ([a062c3c](https://github.com/technicalpickles/sb/commit/a062c3cf496103e163907544e0e37b8371e71074))
+* read --version from package.json ([aadb9be](https://github.com/technicalpickles/sb/commit/aadb9beecad2708c3b8bdba9303b1ebf838133e1))
+
 ## [0.3.0](https://github.com/technicalpickles/sb/compare/v0.2.0...v0.3.0) (2026-06-15)
 
 
