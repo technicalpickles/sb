@@ -82,5 +82,5 @@ npm run test:watch   # Watch mode
 2. **Agent-first design**: JSON output, `--dry-run`, schema introspection, input validation
 3. **Config location**: `~/.claude/second-brain.md` (same as plugin)
 4. **Zettelkasten naming**: `YYYYMMDDHHmm slug.md` format
-5. **PARA discovery**: Heuristic-based folder type detection (Areas/, Resources/, Projects/)
+5. **PARA + Johnny Decimal discovery**: Heuristic folder type detection for PARA (Areas/, Resources/, Projects/) and, alongside it, Johnny Decimal (numbered area `60-69 ...`, category `67 ...`, and ID `67.01 ...` folders, emitted with `type: 'jd'` plus `code` and `area`). Both are auto-detected, since a vault mid-migration runs them side by side.
 6. **Native Claude tools**: Agents use Claude's Read/Write/Edit for vault files, sb handles config and structure
