@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import { readFileSync } from 'fs';
 import { ConfigNotFoundError } from './services/ConfigManager.js';
 import { registerConfigCommands } from './commands/config/index.js';
 import { registerVaultCommands } from './commands/vault/index.js';
@@ -11,12 +12,20 @@ import { registerPermissionsCommands } from './commands/permissions/index.js';
 import { registerInitCommands } from './commands/init/index.js';
 import { registerDescribeCommands } from './commands/describe/index.js';
 
+// Read the version from package.json at runtime so it always tracks the
+// published version (release-please bumps package.json, not source literals).
+// Resolved relative to this module, so it works from both src/ and dist/ —
+// each is one level below the package root — regardless of cwd.
+const pkg = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf-8'),
+) as { version: string };
+
 const program = new Command();
 
 program
   .name('sb')
   .description('Second Brain CLI for Obsidian vault management')
-  .version('0.1.0');
+  .version(pkg.version);
 
 registerConfigCommands(program);
 registerVaultCommands(program);
