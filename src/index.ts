@@ -11,6 +11,7 @@ import { registerInboxCommands } from './commands/inbox/index.js';
 import { registerPermissionsCommands } from './commands/permissions/index.js';
 import { registerInitCommands } from './commands/init/index.js';
 import { registerDescribeCommands } from './commands/describe/index.js';
+import { registerMcpCommands } from './commands/mcp/index.js';
 
 // Read the version from package.json at runtime so it always tracks the
 // published version (release-please bumps package.json, not source literals).
@@ -36,6 +37,7 @@ registerInboxCommands(program);
 registerPermissionsCommands(program);
 registerInitCommands(program);
 registerDescribeCommands(program);
+registerMcpCommands(program, pkg.version);
 
 program.parseAsync().catch((err: unknown) => {
   // Expected, user-facing errors get a friendly one-liner, no stacktrace.
