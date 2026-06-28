@@ -15,7 +15,7 @@ import {
 } from '../src/core/note.js';
 import { dailyPath, dailyAppend, dailyAppendPreview } from '../src/core/daily.js';
 import { inboxList } from '../src/core/inbox.js';
-import { VaultNotFoundError, NotFoundError } from '../src/core/errors.js';
+import { VaultNotFoundError, NotFoundError } from '../src/utils/errors.js';
 import { PathValidationError } from '../src/utils/validation.js';
 
 // Phase 0 acceptance: the command logic is callable from a test without spawning

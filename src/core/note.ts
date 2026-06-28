@@ -8,7 +8,7 @@ import { ObsidianParser } from '../services/ObsidianParser.js';
 import { ProvenanceService } from '../services/ProvenanceService.js';
 import { parseFrontmatter, extractTitle, extractSections, extractWikiLinks } from '../utils/markdown.js';
 import { validatePath, validateWithinVault } from '../utils/validation.js';
-import { InvalidInputError, NotFoundError } from './errors.js';
+import { InvalidInputError, NotFoundError } from '../utils/errors.js';
 
 export interface NoteCreateArgs {
   title: string;

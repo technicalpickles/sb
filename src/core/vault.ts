@@ -1,7 +1,7 @@
 import { ConfigManager, type Vault } from '../services/ConfigManager.js';
 import { ObsidianParser, type ObsidianConfig } from '../services/ObsidianParser.js';
 import { VaultDiscovery } from '../services/VaultDiscovery.js';
-import { VaultNotFoundError } from './errors.js';
+import { VaultNotFoundError } from '../utils/errors.js';
 
 export type { Vault };
 

@@ -3,7 +3,8 @@ import { join } from 'path';
 import type { Vault } from '../services/ConfigManager.js';
 import { ObsidianParser } from '../services/ObsidianParser.js';
 import { parseFrontmatter } from '../utils/markdown.js';
-import { NotFoundError } from './errors.js';
+import { parseZettelkastenFilename } from '../utils/zettelkasten.js';
+import { NotFoundError } from '../utils/errors.js';
 
 export interface InboxEntry {
   filename: string;
@@ -13,12 +14,6 @@ export interface InboxEntry {
 
 export interface DetailedInboxEntry extends InboxEntry {
   frontmatter: Record<string, string>;
-}
-
-function parseZettelkastenFilename(filename: string): { timestamp: string; title: string } | null {
-  const match = filename.match(/^(\d{12})\s+(.+)\.md$/);
-  if (!match) return null;
-  return { timestamp: match[1], title: match[2] };
 }
 
 /** List notes in the vault inbox. With `detail`, includes parsed frontmatter. */
