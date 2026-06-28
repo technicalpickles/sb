@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'fs/promises';
 import { join, relative, sep } from 'path';
 import { parseFrontmatter } from '../utils/markdown.js';
+import { parseZettelkastenFilename } from '../utils/zettelkasten.js';
 
 export interface NoteEntry {
   /** Path relative to the vault root, using forward slashes. */
@@ -20,12 +21,6 @@ export interface ListNotesOptions {
   type?: string;
   /** Include parsed frontmatter on each entry. */
   detail?: boolean;
-}
-
-function parseZettelkastenFilename(filename: string): { timestamp: string; title: string } | null {
-  const match = filename.match(/^(\d{12})\s+(.+)\.md$/);
-  if (!match) return null;
-  return { timestamp: match[1], title: match[2] };
 }
 
 /**

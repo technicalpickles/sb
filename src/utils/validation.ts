@@ -1,8 +1,9 @@
 import { resolve } from 'path';
+import { SbError } from './errors.js';
 
-export class PathValidationError extends Error {
+export class PathValidationError extends SbError {
   constructor(message: string) {
-    super(message);
+    super(message, 'PATH_VALIDATION');
     this.name = 'PathValidationError';
   }
 }

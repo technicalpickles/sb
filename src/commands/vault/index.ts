@@ -1,22 +1,5 @@
 import { Command } from 'commander';
-import { ConfigManager } from '../../services/ConfigManager.js';
-import { ObsidianParser } from '../../services/ObsidianParser.js';
-import { VaultDiscovery } from '../../services/VaultDiscovery.js';
-
-async function resolveVault(name?: string) {
-  const mgr = new ConfigManager();
-  const cfg = await mgr.load();
-  const v = mgr.getVault(cfg, name);
-  if (!v) {
-    if (!name) {
-      console.error('No vault specified and no default configured');
-    } else {
-      console.error(`Vault "${name}" not found`);
-    }
-    process.exit(1);
-  }
-  return v;
-}
+import { resolveVault, vaultInfo, vaultObsidian, vaultStructure } from '../../core/vault.js';
 
 export function registerVaultCommands(program: Command): void {
   const vault = program
@@ -29,7 +12,7 @@ export function registerVaultCommands(program: Command): void {
     .option('--vault <name>', 'Vault name (uses default if omitted)')
     .action(async (opts: { vault?: string }) => {
       const v = await resolveVault(opts.vault);
-      console.log(JSON.stringify(v, null, 2));
+      console.log(JSON.stringify(vaultInfo(v), null, 2));
     });
 
   vault
@@ -38,9 +21,7 @@ export function registerVaultCommands(program: Command): void {
     .option('--vault <name>', 'Vault name (uses default if omitted)')
     .action(async (opts: { vault?: string }) => {
       const v = await resolveVault(opts.vault);
-      const parser = new ObsidianParser(v.path);
-      const config = await parser.load();
-      console.log(JSON.stringify(config, null, 2));
+      console.log(JSON.stringify(await vaultObsidian(v), null, 2));
     });
 
   vault
@@ -49,8 +30,6 @@ export function registerVaultCommands(program: Command): void {
     .option('--vault <name>', 'Vault name (uses default if omitted)')
     .action(async (opts: { vault?: string }) => {
       const v = await resolveVault(opts.vault);
-      const discovery = new VaultDiscovery(v.path);
-      const structure = await discovery.discover();
-      console.log(JSON.stringify(structure, null, 2));
+      console.log(JSON.stringify(await vaultStructure(v), null, 2));
     });
 }
