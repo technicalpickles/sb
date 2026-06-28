@@ -1,7 +1,7 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
-import { SbError } from '../core/errors.js';
+import { SbError } from '../utils/errors.js';
 
 export interface Vault {
   name: string;

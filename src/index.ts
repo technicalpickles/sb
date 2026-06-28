@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
-import { SbError } from './core/errors.js';
+import { SbError } from './utils/errors.js';
 import { registerConfigCommands } from './commands/config/index.js';
 import { registerVaultCommands } from './commands/vault/index.js';
 import { registerNoteCommands } from './commands/note/index.js';
