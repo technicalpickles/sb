@@ -1,5 +1,5 @@
 import { resolve } from 'path';
-import { SbError } from '../core/errors.js';
+import { SbError } from './errors.js';
 
 export class PathValidationError extends SbError {
   constructor(message: string) {
