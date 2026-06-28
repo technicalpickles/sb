@@ -60,6 +60,15 @@ export async function startHttpServer({ buildServer, host, port }: StartHttpServ
   app.delete('/mcp', methodNotAllowed);
 
   const httpServer = createServer(app);
-  await new Promise<void>((resolve) => httpServer.listen(port, host, resolve));
+  // Wire the 'error' event before listening so a bind failure (EADDRINUSE,
+  // EACCES) rejects this promise instead of surfacing as an unhandled
+  // exception with a raw stack trace.
+  await new Promise<void>((resolve, reject) => {
+    httpServer.once('error', reject);
+    httpServer.listen(port, host, () => {
+      httpServer.removeListener('error', reject);
+      resolve();
+    });
+  });
   return httpServer;
 }

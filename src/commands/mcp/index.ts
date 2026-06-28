@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { resolveVault } from '../../core/vault.js';
-import { InvalidInputError } from '../../core/errors.js';
+import { InvalidInputError } from '../../utils/errors.js';
 import { buildMcpServer } from '../../mcp/server.js';
 import { startHttpServer } from '../../mcp/http.js';
 
@@ -32,11 +32,23 @@ export function registerMcpCommands(program: Command, version: string): void {
       // Warm state: resolve config + vault once; reuse for every request.
       const vault = await resolveVault(opts.vault);
 
-      const httpServer = await startHttpServer({
-        buildServer: () => buildMcpServer({ vault, version }),
-        host,
-        port,
-      });
+      let httpServer;
+      try {
+        httpServer = await startHttpServer({
+          buildServer: () => buildMcpServer({ vault, version }),
+          host,
+          port,
+        });
+      } catch (err: unknown) {
+        // A bind failure (port in use, privileged port) is a user-facing
+        // condition: report it as a friendly one-liner, not a raw stack.
+        if (err instanceof Error && 'code' in err) {
+          throw new InvalidInputError(
+            `Cannot bind ${host}:${port}: ${(err as NodeJS.ErrnoException).code}`,
+          );
+        }
+        throw err;
+      }
 
       // Logs go to stderr: stdout is reserved, and over HTTP it isn't the wire anyway.
       console.error(`sb mcp listening on http://${host}:${port}/mcp (vault: ${vault.name})`);

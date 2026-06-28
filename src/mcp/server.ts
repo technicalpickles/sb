@@ -6,7 +6,7 @@ import { vaultStructure, vaultObsidian } from '../core/vault.js';
 import { inboxList } from '../core/inbox.js';
 import { noteRead, noteContext } from '../core/note.js';
 import { dailyPath } from '../core/daily.js';
-import { SbError } from '../core/errors.js';
+import { SbError } from '../utils/errors.js';
 
 export interface BuildMcpServerOptions {
   /** The vault all tools operate on, resolved once at startup (warm state). */
