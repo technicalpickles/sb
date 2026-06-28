@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { readFileSync } from 'fs';
-import { ConfigNotFoundError } from './services/ConfigManager.js';
+import { SbError } from './core/errors.js';
 import { registerConfigCommands } from './commands/config/index.js';
 import { registerVaultCommands } from './commands/vault/index.js';
 import { registerNoteCommands } from './commands/note/index.js';
@@ -38,8 +38,8 @@ registerInitCommands(program);
 registerDescribeCommands(program);
 
 program.parseAsync().catch((err: unknown) => {
-  // Known user-facing errors get a friendly one-liner, no stacktrace.
-  if (err instanceof ConfigNotFoundError) {
+  // Expected, user-facing errors get a friendly one-liner, no stacktrace.
+  if (err instanceof SbError) {
     console.error(err.message);
     process.exit(1);
   }

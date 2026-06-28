@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
+import { SbError } from '../core/errors.js';
 
 export interface Vault {
   name: string;
@@ -17,9 +18,9 @@ export interface Config {
   settings: Record<string, VaultSettings>;
 }
 
-export class ConfigNotFoundError extends Error {
+export class ConfigNotFoundError extends SbError {
   constructor() {
-    super('Second brain not configured. Run /second-brain:setup first.');
+    super('Second brain not configured. Run /second-brain:setup first.', 'CONFIG_NOT_FOUND');
     this.name = 'ConfigNotFoundError';
   }
 }
