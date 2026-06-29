@@ -9,6 +9,7 @@ A CLI for Obsidian vault management, designed to support the second-brain Claude
 - **Language**: TypeScript (strict mode, ES modules)
 - **Runtime**: Node.js 20+
 - **CLI Framework**: Commander.js
+- **MCP Server**: @modelcontextprotocol/sdk (stdio + HTTP via Express), zod schemas
 - **Testing**: Vitest
 
 ## Project Structure
@@ -19,19 +20,29 @@ src/
 ├── commands/             # Command implementations
 │   ├── config/           # config show, vaults, default, qmd-collection
 │   ├── vault/            # vault info, obsidian, structure
-│   ├── note/             # note create, read, context, move
+│   ├── note/             # note create, read, context, list, move
 │   ├── daily/            # daily path, append
 │   ├── inbox/            # inbox list
 │   ├── init/             # init (vault setup)
 │   ├── provenance/       # provenance (git context)
 │   ├── permissions/      # permissions (Claude Code entries)
-│   └── describe/         # describe (schema introspection)
+│   ├── describe/         # describe (schema introspection)
+│   └── mcp/              # mcp (run MCP server: stdio, or --listen for HTTP)
+├── core/                 # Shared business logic for CLI + MCP adapters
+│   ├── vault.ts          # resolveVault, structure, obsidian config
+│   ├── note.ts           # read, context, list, move, create
+│   ├── daily.ts          # daily path + append
+│   └── inbox.ts          # inbox listing
+├── mcp/                  # MCP server
+│   ├── server.ts         # McpServer + tool registration (vault/note/daily/inbox)
+│   └── http.ts           # Streamable HTTP transport (Express)
 ├── services/             # Business logic
 │   ├── ConfigManager.ts  # Parse ~/.claude/second-brain.md
 │   ├── ObsidianParser.ts # Parse .obsidian/*.json
 │   ├── VaultDiscovery.ts # PARA folder discovery
 │   ├── NoteBuilder.ts    # Zettelkasten note creation + preview
 │   ├── NoteAnalyzer.ts   # Keyword extraction, routing context
+│   ├── NoteLister.ts     # Note listing + frontmatter summaries
 │   ├── DailyNoteManager.ts
 │   └── ProvenanceService.ts # Git context detection
 ├── types/
@@ -39,6 +50,7 @@ src/
 └── utils/
     ├── zettelkasten.ts   # Filename generation
     ├── markdown.ts       # Frontmatter parsing, section/link extraction
+    ├── errors.ts         # Typed error hierarchy (SbError + subclasses)
     └── validation.ts     # Path validation, traversal protection
 test/
 ├── fixtures/             # Mock vault structures
@@ -84,3 +96,4 @@ npm run test:watch   # Watch mode
 4. **Zettelkasten naming**: `YYYYMMDDHHmm slug.md` format
 5. **PARA + Johnny Decimal discovery**: Heuristic folder type detection for PARA (Areas/, Resources/, Projects/) and, alongside it, Johnny Decimal (numbered area `60-69 ...`, category `67 ...`, and ID `67.01 ...` folders, emitted with `type: 'jd'` plus `code` and `area`). Both are auto-detected, since a vault mid-migration runs them side by side.
 6. **Native Claude tools**: Agents use Claude's Read/Write/Edit for vault files, sb handles config and structure
+7. **Core/adapter split**: `src/core/` holds vault/note/daily/inbox logic; `commands/` (CLI) and `mcp/` (MCP server, `sb mcp`) are thin adapters over it, so both share one implementation and one error model (`utils/errors.ts`).
