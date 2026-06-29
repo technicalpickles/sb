@@ -11,6 +11,12 @@
         "source": "github",
         "repo": "obra/superpowers-marketplace"
       }
+    },
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
     }
   },
   "enabledPlugins": {
@@ -20,6 +26,8 @@
     "ci-cd-tools@pickled-claude-plugins": true,
     "dev-tools@pickled-claude-plugins": true,
     "working-in-monorepos@pickled-claude-plugins": true,
-    "github-actions@pickled-claude-plugins": true
+    "github-actions@pickled-claude-plugins": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true
   }
 }
