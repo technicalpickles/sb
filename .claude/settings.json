@@ -19,6 +19,7 @@
     "git@pickled-claude-plugins": true,
     "ci-cd-tools@pickled-claude-plugins": true,
     "dev-tools@pickled-claude-plugins": true,
-    "working-in-monorepos@pickled-claude-plugins": true
+    "working-in-monorepos@pickled-claude-plugins": true,
+    "github-actions@pickled-claude-plugins": true
   }
 }
