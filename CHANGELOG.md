@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/technicalpickles/sb/compare/v0.3.1...v0.4.0) (2026-07-01)
+
+
+### Features
+
+* add note list subcommand with --type filter ([9c1b3ee](https://github.com/technicalpickles/sb/commit/9c1b3ee14656299313eca8f7ce2861565a6862bc))
+* add note list subcommand with --type filter ([6a1df96](https://github.com/technicalpickles/sb/commit/6a1df9648e260f878fff37e7890d60538759cb5b))
+* add sb mcp read-only Streamable HTTP server (MCP Phase 1) ([1b143d7](https://github.com/technicalpickles/sb/commit/1b143d7fc92afa655b473212d3f28e0b744d27bd))
+
+
+### Bug Fixes
+
+* resolve errors module path and handle bind failures in mcp server ([5515578](https://github.com/technicalpickles/sb/commit/551557860ae140ef909daca3b4a644cf752d255e))
+
 ## [0.3.1](https://github.com/technicalpickles/sb/compare/v0.3.0...v0.3.1) (2026-06-15)
 
 
