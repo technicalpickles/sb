@@ -26,7 +26,7 @@ export function registerVaultCommands(program: Command): void {
 
   vault
     .command('structure')
-    .description('Discover PARA and Johnny Decimal folder structure')
+    .description('Discover PARA and Johnny Decimal folder structure. Returns { destinations: [{ path, type, ... }] }, not a bare array.')
     .option('--vault <name>', 'Vault name (uses default if omitted)')
     .action(async (opts: { vault?: string }) => {
       const v = await resolveVault(opts.vault);

@@ -133,6 +133,8 @@ sb is designed to be called by AI agents. Key features:
 - **Input validation** rejects path traversal, control characters, and URL-encoded strings
 - **`--source auto`** detects git provenance from the agent's working directory
 
+If invoking via `npx @techpickles/sb`, parse defensively: `npm`'s own warnings (e.g. from an unrelated `.npmrc` in the caller's repo) can print to stdout ahead of sb's JSON. Extract the substring starting at the first `{` rather than parsing the whole stdout blob.
+
 ## Full Reference
 
 See [docs/command-reference.md](docs/command-reference.md) for detailed output examples, error behavior, and edge cases.
