@@ -1,17 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { execSync } from 'child_process';
-
-function run(args: string): unknown {
-  const output = execSync(`npx tsx src/index.ts ${args}`, {
-    cwd: process.cwd(),
-    encoding: 'utf-8',
-  });
-  return JSON.parse(output.trim());
-}
+import { runCliJson, runCliText } from './helpers/run-cli.js';
 
 describe('sb describe', () => {
   it('outputs full command schema', () => {
-    const schema = run('describe') as { name: string; subcommands: unknown[] };
+    const schema = runCliJson(['describe']) as { name: string; subcommands: unknown[] };
 
     expect(schema.name).toBe('sb');
     expect(schema.subcommands).toBeDefined();
@@ -31,7 +23,7 @@ describe('sb describe', () => {
   });
 
   it('outputs schema for a specific command', () => {
-    const schema = run('describe --command note') as {
+    const schema = runCliJson(['describe', '--command', 'note']) as {
       name: string;
       subcommands: Array<{ name: string; options: Array<{ flags: string }> }>;
     };
@@ -53,6 +45,6 @@ describe('sb describe', () => {
   });
 
   it('errors on unknown command', () => {
-    expect(() => run('describe --command nonexistent')).toThrow();
+    expect(() => runCliText(['describe', '--command', 'nonexistent'])).toThrow();
   });
 });

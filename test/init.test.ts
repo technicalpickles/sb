@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, mkdir, writeFile, readFile, rm, access } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { execSync } from 'child_process';
+import { runCliText } from './helpers/run-cli.js';
 
 describe('sb init', () => {
   let tempDir: string;
@@ -31,12 +31,7 @@ describe('sb init', () => {
 
   // We test the init logic by running the CLI with HOME overridden
   function runInit(args: string): string {
-    const sbPath = join(process.cwd(), 'dist', 'index.js');
-    return execSync(`node ${sbPath} init ${args}`, {
-      cwd: tempDir,
-      encoding: 'utf-8',
-      env: { ...process.env, HOME: tempDir },
-    });
+    return runCliText(['init', ...args.split(' ')], { cwd: tempDir, home: tempDir });
   }
 
   it('creates fresh config with vault', () => {
