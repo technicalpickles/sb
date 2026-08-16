@@ -1,31 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { execFileSync } from 'child_process';
 import { mkdtemp, rm, readFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-
-interface RunResult {
-  code: number;
-  stdout: string;
-  stderr: string;
-}
-
-// Run the built CLI with HOME pointed at an empty dir so config is missing.
-// Mirrors test/init.test.ts: exercise the compiled binary, not the source.
-function runCli(args: string[], home: string): RunResult {
-  const sbPath = join(process.cwd(), 'dist', 'index.js');
-  try {
-    const stdout = execFileSync('node', [sbPath, ...args], {
-      encoding: 'utf-8',
-      env: { ...process.env, HOME: home },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return { code: 0, stdout, stderr: '' };
-  } catch (err: unknown) {
-    const e = err as { status?: number; stdout?: string; stderr?: string };
-    return { code: e.status ?? 1, stdout: e.stdout ?? '', stderr: e.stderr ?? '' };
-  }
-}
+import { runCli } from './helpers/run-cli.js';
 
 describe('CLI missing-config error handling', () => {
   let emptyHome: string;
@@ -39,7 +16,7 @@ describe('CLI missing-config error handling', () => {
   });
 
   it('prints a friendly message and exits non-zero for note create, no stacktrace', () => {
-    const result = runCli(['note', 'create', '--title', 'x'], emptyHome);
+    const result = runCli(['note', 'create', '--title', 'x'], { home: emptyHome });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('not configured');
@@ -49,7 +26,7 @@ describe('CLI missing-config error handling', () => {
   });
 
   it('also handles config subcommands without a stacktrace', () => {
-    const result = runCli(['config', 'vaults'], emptyHome);
+    const result = runCli(['config', 'vaults'], { home: emptyHome });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toContain('not configured');
@@ -63,7 +40,7 @@ describe('CLI --version', () => {
       await readFile(join(process.cwd(), 'package.json'), 'utf-8'),
     ) as { version: string };
 
-    const result = runCli(['--version'], tmpdir());
+    const result = runCli(['--version'], { home: tmpdir() });
 
     expect(result.code).toBe(0);
     expect(result.stdout.trim()).toBe(pkg.version);
@@ -73,12 +50,8 @@ describe('CLI --version', () => {
     // Run from a dir with no package.json of its own: the version must come
     // from the package's own package.json (resolved via import.meta.url),
     // not from whatever happens to be in cwd.
-    const sbPath = join(process.cwd(), 'dist', 'index.js');
-    const stdout = execFileSync('node', [sbPath, '--version'], {
-      encoding: 'utf-8',
-      cwd: tmpdir(),
-    });
+    const result = runCli(['--version'], { cwd: tmpdir() });
 
-    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
+    expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
   });
 });
