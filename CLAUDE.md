@@ -87,6 +87,7 @@ npm run test:watch   # Watch mode
 - Vitest with temp directories for vault fixtures
 - Each service has unit tests
 - Integration tests verify full workflows
+- Tests that spawn the CLI as a subprocess always run the built binary (`node dist/index.js`) via the shared `test/helpers/run-cli.ts` — never `npx tsx` or an ad hoc `execSync`/`execFileSync` wrapper. `npm test` therefore requires `npm run build` first (CI always builds before testing)
 
 ## Key Design Decisions
 
