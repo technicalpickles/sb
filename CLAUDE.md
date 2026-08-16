@@ -66,6 +66,12 @@ npm test             # Run tests
 npm run test:watch   # Watch mode
 ```
 
+## Releases
+
+Versioning and `CHANGELOG.md` are automated by [release-please](https://github.com/googleapis/release-please): it watches `main`, and when it finds commits it can parse it opens/updates a release PR that bumps `package.json` and generates changelog entries. Merging that PR cuts the release.
+
+PRs are **squash-merged only** (repo setting), and **the PR title must be a [Conventional Commit](https://www.conventionalcommits.org/)** (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, etc., optionally scoped like `fix(cli):`) — a GitHub Action (`.github/workflows/pr-title-lint.yml`) enforces this on every PR. The squashed commit that lands on `main` is exactly the PR title, and that's the string release-please parses: `feat`/`fix` trigger a version bump and a changelog line, `BREAKING CHANGE` (or `!` after the type) triggers a major bump, other types are recorded but don't bump. A non-conventional title means release-please has nothing to act on — this is why the automation went quiet for a while before this convention was enforced.
+
 ## Code Conventions
 
 ### TypeScript
