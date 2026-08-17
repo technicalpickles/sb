@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/technicalpickles/sb/compare/v0.4.0...v0.4.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* require CI and PR title checks on main ([#23](https://github.com/technicalpickles/sb/issues/23)) ([06f6b0a](https://github.com/technicalpickles/sb/commit/06f6b0a24383c44517c26bdc938a2119477550b2))
+
 ## [0.4.0](https://github.com/technicalpickles/sb/compare/v0.3.1...v0.4.0) (2026-07-01)
 
 
