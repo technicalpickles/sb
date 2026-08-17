@@ -72,6 +72,8 @@ Versioning and `CHANGELOG.md` are automated by [release-please](https://github.c
 
 PRs are **squash-merged only** (repo setting), and **the PR title must be a [Conventional Commit](https://www.conventionalcommits.org/)** (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, etc., optionally scoped like `fix(cli):`) — a GitHub Action (`.github/workflows/pr-title-lint.yml`) enforces this on every PR. The squashed commit that lands on `main` is exactly the PR title, and that's the string release-please parses: `feat`/`fix` trigger a version bump and a changelog line, `BREAKING CHANGE` (or `!` after the type) triggers a major bump, other types are recorded but don't bump. A non-conventional title means release-please has nothing to act on — this is why the automation went quiet for a while before this convention was enforced.
 
+`main` is a protected branch requiring the `test (20)`, `test (22)`, and `lint` status checks to pass before merge, so a PR can't land without a valid Conventional Commit title.
+
 ## Code Conventions
 
 ### TypeScript
