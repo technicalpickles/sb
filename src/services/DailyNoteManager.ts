@@ -26,13 +26,21 @@ export class DailyNoteManager {
     const fileContent = await readFile(filePath, 'utf-8');
     const lines = fileContent.split('\n');
 
-    const sectionIdx = lines.findIndex(l => l.trim() === section);
+    // Callers pass either a bare heading ("Notes") or a full heading ("## Notes");
+    // normalize to the heading text so both forms match the same line.
+    const target = section.replace(/^#{1,6}\s*/, '').trim();
+    const headingMatch = (line: string): RegExpMatchArray | null => line.match(/^(#{1,6})\s+(.*)$/);
+
+    const sectionIdx = lines.findIndex(l => headingMatch(l)?.[2].trim() === target);
 
     if (sectionIdx !== -1) {
-      // Find next section or end of file
+      const matchLevel = headingMatch(lines[sectionIdx])![1].length;
+
+      // Find next heading at the same level or shallower, or end of file
       let nextSection = lines.length;
       for (let i = sectionIdx + 1; i < lines.length; i++) {
-        if (lines[i].startsWith('## ')) {
+        const m = headingMatch(lines[i]);
+        if (m && m[1].length <= matchLevel) {
           nextSection = i;
           break;
         }
@@ -42,8 +50,8 @@ export class DailyNoteManager {
       lines.splice(nextSection, 0, content);
       await writeFile(filePath, lines.join('\n'));
     } else {
-      // Section doesn't exist, append at end
-      const newContent = fileContent + `\n${section}\n\n${content}\n`;
+      // Section doesn't exist, create it as a new H2 heading at end of file
+      const newContent = fileContent + `\n## ${target}\n\n${content}\n`;
       await writeFile(filePath, newContent);
     }
   }
