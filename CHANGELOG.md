@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2](https://github.com/technicalpickles/sb/compare/v0.4.1...v0.4.2) (2026-08-28)
+
+
+### Bug Fixes
+
+* **daily:** create the daily note when missing instead of throwing ENOENT ([#27](https://github.com/technicalpickles/sb/issues/27)) ([830689f](https://github.com/technicalpickles/sb/commit/830689fdd933d4fdea89a827a98c3260339a3903))
+* **daily:** match section headings without requiring the literal ## prefix ([#25](https://github.com/technicalpickles/sb/issues/25)) ([b5579e5](https://github.com/technicalpickles/sb/commit/b5579e5adaf925fd82c9e39748bf85f53e9c8f96))
+
 ## [0.4.1](https://github.com/technicalpickles/sb/compare/v0.4.0...v0.4.1) (2026-08-17)
 
 
