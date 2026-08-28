@@ -157,4 +157,61 @@ describe('DailyNoteManager', () => {
     expect(linksIdx).toBeLessThan(secondLinkIdx);
     expect(secondLinkIdx).toBeLessThan(tasksIdx);
   });
+
+  it('creates a missing daily note (no template configured) instead of throwing ENOENT', async () => {
+    const notePath = join(tempDir, 'Daily', '2026-02-14.md');
+
+    const manager = new DailyNoteManager(tempDir, {});
+    const result = await manager.appendToSection(notePath, 'Links', '- [[new-note]]');
+
+    expect(result.created).toBe(true);
+    const content = await readFile(notePath, 'utf-8');
+    expect(content).toContain('## Links');
+    expect(content).toContain('[[new-note]]');
+  });
+
+  it('reports created: false when the note already exists', async () => {
+    const notePath = join(tempDir, '2026-02-14.md');
+    await writeFile(notePath, '# 2026-02-14\n\n## Links\n\n');
+
+    const manager = new DailyNoteManager(tempDir, {});
+    const result = await manager.appendToSection(notePath, 'Links', '- [[new-note]]');
+
+    expect(result.created).toBe(false);
+  });
+
+  it('seeds a missing daily note from the configured Obsidian template', async () => {
+    const templateDir = join(tempDir, 'Templates');
+    await mkdir(templateDir, { recursive: true });
+    await writeFile(
+      join(templateDir, 'daily.md'),
+      ['# Daily', '', '## Notes', '', '## Links', '', '## Tasks', ''].join('\n'),
+    );
+
+    const notePath = join(tempDir, 'Daily', '2026-02-14.md');
+    const manager = new DailyNoteManager(tempDir, { dailyNotes: { template: 'Templates/daily' } });
+    const result = await manager.appendToSection(notePath, 'Links', '- [[new-note]]');
+
+    expect(result.created).toBe(true);
+    const content = await readFile(notePath, 'utf-8');
+    expect(content).toContain('# Daily');
+    const notesIdx = content.indexOf('## Notes');
+    const linksIdx = content.indexOf('## Links');
+    const newNoteIdx = content.indexOf('[[new-note]]');
+    const tasksIdx = content.indexOf('## Tasks');
+    expect(notesIdx).toBeLessThan(linksIdx);
+    expect(linksIdx).toBeLessThan(newNoteIdx);
+    expect(newNoteIdx).toBeLessThan(tasksIdx);
+  });
+
+  it('falls back to empty content when the configured template file itself is missing', async () => {
+    const notePath = join(tempDir, 'Daily', '2026-02-14.md');
+    const manager = new DailyNoteManager(tempDir, { dailyNotes: { template: 'Templates/does-not-exist' } });
+    const result = await manager.appendToSection(notePath, 'Links', '- [[new-note]]');
+
+    expect(result.created).toBe(true);
+    const content = await readFile(notePath, 'utf-8');
+    expect(content).toContain('## Links');
+    expect(content).toContain('[[new-note]]');
+  });
 });

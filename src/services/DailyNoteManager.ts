@@ -1,5 +1,5 @@
-import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { readFile, writeFile, mkdir } from 'fs/promises';
+import { join, dirname } from 'path';
 import type { ObsidianConfig } from './ObsidianParser.js';
 
 export class DailyNoteManager {
@@ -22,8 +22,23 @@ export class DailyNoteManager {
     return join(this.vaultPath, folder, filename);
   }
 
-  async appendToSection(filePath: string, section: string, content: string): Promise<void> {
-    const fileContent = await readFile(filePath, 'utf-8');
+  /** Appends content under a section, creating the daily note first (from the Obsidian
+   * daily-note template, if configured) when it doesn't exist yet. Returns whether the
+   * note had to be created. */
+  async appendToSection(filePath: string, section: string, content: string): Promise<{ created: boolean }> {
+    let fileContent: string;
+    let created = false;
+
+    try {
+      fileContent = await readFile(filePath, 'utf-8');
+    } catch (err) {
+      if (!(err instanceof Error) || !('code' in err) || (err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+      fileContent = await this.createFromTemplate(filePath);
+      created = true;
+    }
+
     const lines = fileContent.split('\n');
 
     // Callers pass either a bare heading ("Notes") or a full heading ("## Notes");
@@ -54,5 +69,29 @@ export class DailyNoteManager {
       const newContent = fileContent + `\n## ${target}\n\n${content}\n`;
       await writeFile(filePath, newContent);
     }
+
+    return { created };
+  }
+
+  /** Creates filePath's parent folder and seeds it from the configured daily-note
+   * template (raw content, no variable substitution), or empty if none is configured
+   * or the template file itself is missing. Returns the seeded content. */
+  private async createFromTemplate(filePath: string): Promise<string> {
+    await mkdir(dirname(filePath), { recursive: true });
+
+    const templateRel = this.config.dailyNotes?.template;
+    let content = '';
+
+    if (templateRel) {
+      const templatePath = join(this.vaultPath, templateRel.endsWith('.md') ? templateRel : `${templateRel}.md`);
+      try {
+        content = await readFile(templatePath, 'utf-8');
+      } catch {
+        content = '';
+      }
+    }
+
+    await writeFile(filePath, content);
+    return content;
   }
 }
