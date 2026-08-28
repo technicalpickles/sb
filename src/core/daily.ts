@@ -10,6 +10,9 @@ export interface DailyAppendArgs {
 export interface DailyAppendResult {
   path: string;
   section: string;
+  /** Whether today's daily note had to be created (from the vault's daily-note
+   * template, if configured) because it didn't exist yet. */
+  created: boolean;
 }
 
 async function manager(vault: Vault): Promise<DailyNoteManager> {
@@ -26,15 +29,15 @@ export async function dailyPath(vault: Vault): Promise<string> {
 export async function dailyAppendPreview(
   vault: Vault,
   args: DailyAppendArgs,
-): Promise<DailyAppendResult & { content: string }> {
+): Promise<Omit<DailyAppendResult, 'created'> & { content: string }> {
   const path = (await manager(vault)).dailyPath();
   return { path, section: args.section, content: args.content };
 }
 
-/** Append content to a section of today's daily note. */
+/** Append content to a section of today's daily note, creating the note first if needed. */
 export async function dailyAppend(vault: Vault, args: DailyAppendArgs): Promise<DailyAppendResult> {
   const mgr = await manager(vault);
   const path = mgr.dailyPath();
-  await mgr.appendToSection(path, args.section, args.content);
-  return { path, section: args.section };
+  const { created } = await mgr.appendToSection(path, args.section, args.content);
+  return { path, section: args.section, created };
 }
