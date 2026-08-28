@@ -86,6 +86,52 @@ describe('DailyNoteManager', () => {
     expect(content).toContain('[[new-note]]');
   });
 
+  it('matches an existing heading when section is passed without the leading ##', async () => {
+    const notePath = join(tempDir, '2026-02-14.md');
+    await writeFile(notePath, [
+      '# 2026-02-14',
+      '',
+      '## Notes',
+      '',
+      'Some notes here.',
+      '',
+      '## Links',
+      '',
+      '- [[existing-link]]',
+      '',
+      '## Tasks',
+      '',
+      '- [ ] Do something',
+    ].join('\n'));
+
+    const manager = new DailyNoteManager(tempDir, {});
+    await manager.appendToSection(notePath, 'Notes', '- [[new-note]] - Test description');
+
+    const content = await readFile(notePath, 'utf-8');
+    const lines = content.split('\n');
+
+    // Must land under the real "## Notes" heading, not as a stray "Notes" block at EOF.
+    expect(lines.filter(l => l.trim() === 'Notes')).toHaveLength(0);
+    const notesIdx = content.indexOf('## Notes');
+    const linksIdx = content.indexOf('## Links');
+    const newNoteIdx = content.indexOf('[[new-note]]');
+    expect(notesIdx).toBeLessThan(newNoteIdx);
+    expect(newNoteIdx).toBeLessThan(linksIdx);
+  });
+
+  it('creates a bare section name as a proper ## heading, not a stray text block', async () => {
+    const notePath = join(tempDir, '2026-02-14.md');
+    await writeFile(notePath, '# 2026-02-14\n\n## Notes\n\nSome notes.');
+
+    const manager = new DailyNoteManager(tempDir, {});
+    await manager.appendToSection(notePath, 'Links', '- [[new-note]]');
+
+    const content = await readFile(notePath, 'utf-8');
+    expect(content).toContain('## Links');
+    expect(content).not.toMatch(/^Links$/m);
+    expect(content).toContain('[[new-note]]');
+  });
+
   it('preserves content order when appending to middle section', async () => {
     const notePath = join(tempDir, '2026-02-14.md');
     await writeFile(notePath, [
