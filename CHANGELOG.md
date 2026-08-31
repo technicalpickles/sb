@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/technicalpickles/sb/compare/v0.4.2...v0.5.0) (2026-08-31)
+
+
+### Features
+
+* add sb hooks devlog-nudge command for external nudge hooks ([#28](https://github.com/technicalpickles/sb/issues/28)) ([08193a3](https://github.com/technicalpickles/sb/commit/08193a3a7a14b93820b4f1dc99850769904edbf5))
+
 ## [0.4.2](https://github.com/technicalpickles/sb/compare/v0.4.1...v0.4.2) (2026-08-28)
 
 
