@@ -161,3 +161,70 @@ describe('sb hooks devlog-nudge immediate', () => {
     }
   });
 });
+
+describe('sb hooks devlog-nudge mark + check', () => {
+  let stateDir: string;
+
+  beforeEach(() => {
+    stateDir = mkdtempSync(join(tmpdir(), 'sb-devlog-nudge-markcheck-test-'));
+    process.env.SB_DEVLOG_NUDGE_STATE_DIR = stateDir;
+    process.env.SB_DEVLOG_NUDGE_CAP = '1';
+  });
+
+  afterEach(() => {
+    rmSync(stateDir, { recursive: true, force: true });
+    delete process.env.SB_DEVLOG_NUDGE_STATE_DIR;
+    delete process.env.SB_DEVLOG_NUDGE_CAP;
+  });
+
+  it('check is silent when no mark has been recorded', () => {
+    const result = runCliStdin(['hooks', 'devlog-nudge', 'check'], JSON.stringify({ session_id: 'sess-mc-1' }));
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('mark then check emits a decision:block nudge naming the skill', () => {
+    runCliStdin(
+      ['hooks', 'devlog-nudge', 'mark', '--skill', 'agent-meta:park'],
+      JSON.stringify({ session_id: 'sess-mc-2' }),
+    );
+    const result = runCliStdin(['hooks', 'devlog-nudge', 'check'], JSON.stringify({ session_id: 'sess-mc-2' }));
+    const payload = JSON.parse(result.stdout) as { decision: string; reason: string };
+    expect(payload.decision).toBe('block');
+    expect(payload.reason).toMatch(/agent-meta:park/);
+    expect(payload.reason).toMatch(/devlog/);
+  });
+
+  it('check clears the marker: a second check on the same session is silent', () => {
+    runCliStdin(
+      ['hooks', 'devlog-nudge', 'mark', '--skill', 'superpowers:executing-plans'],
+      JSON.stringify({ session_id: 'sess-mc-3' }),
+    );
+    runCliStdin(['hooks', 'devlog-nudge', 'check'], JSON.stringify({ session_id: 'sess-mc-3' }));
+    const second = runCliStdin(['hooks', 'devlog-nudge', 'check'], JSON.stringify({ session_id: 'sess-mc-3' }));
+    expect(second.stdout.trim()).toBe('');
+  });
+
+  it('shares the cap with immediate: a spent cap suppresses check too, but still clears the marker', () => {
+    runCliStdin(['hooks', 'devlog-nudge', 'immediate'], JSON.stringify({ session_id: 'sess-mc-4' })); // spends the cap of 1
+    runCliStdin(
+      ['hooks', 'devlog-nudge', 'mark', '--skill', 'agent-meta:park'],
+      JSON.stringify({ session_id: 'sess-mc-4' }),
+    );
+    const result = runCliStdin(['hooks', 'devlog-nudge', 'check'], JSON.stringify({ session_id: 'sess-mc-4' }));
+    expect(result.stdout.trim()).toBe('');
+
+    // Marker cleared even though suppressed: raising the cap and marking again
+    // should require a fresh mark, not resurrect the old one.
+    process.env.SB_DEVLOG_NUDGE_CAP = '99';
+    const afterRaisingCap = runCliStdin(
+      ['hooks', 'devlog-nudge', 'check'],
+      JSON.stringify({ session_id: 'sess-mc-4' }),
+    );
+    expect(afterRaisingCap.stdout.trim()).toBe('');
+  });
+
+  it('mark is silent when session_id is missing', () => {
+    const result = runCliStdin(['hooks', 'devlog-nudge', 'mark', '--skill', 'agent-meta:park'], JSON.stringify({}));
+    expect(result.stdout.trim()).toBe('');
+  });
+});

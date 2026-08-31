@@ -47,4 +47,57 @@ export function registerHooksCommands(program: Command): void {
         }),
       );
     });
+
+  // "Category B" (per the same design doc "immediate" references above):
+  // a predictive trigger skill fires now, but whether it was worth a devlog
+  // entry only settles later, at session-end. `mark` records that the skill
+  // fired; `check` (run from a later Stop hook) reads and clears the marker.
+  function buildCheckReason(skill: string): string {
+    return `You just finished a session-wrapping step (skill=${skill}). If anything non-obvious surfaced this session, consider a second-brain:devlog entry before moving on. Skip if there's nothing worth recording.`;
+  }
+
+  devlogNudge
+    .command('mark')
+    .description('Category B: record that a predictive trigger skill fired this session')
+    .requiredOption('--skill <name>', 'Skill name that fired')
+    .action(async (opts: { skill: string }) => {
+      const sessionId = await getSessionId();
+      if (!sessionId) return;
+
+      try {
+        const state = await readState(sessionId);
+        await writeState(sessionId, { ...state, pendingMarkerSkill: opts.skill });
+      } catch {
+        // Fail quiet: same rationale as `immediate`'s try/catch above.
+        return;
+      }
+    });
+
+  devlogNudge
+    .command('check')
+    .description('Category B: check the pending marker + cap, emit a Stop nudge, clear the marker')
+    .action(async () => {
+      const sessionId = await getSessionId();
+      if (!sessionId) return;
+
+      let skill: string | undefined;
+      try {
+        const state = await readState(sessionId);
+        skill = state.pendingMarkerSkill;
+        if (!skill) return;
+
+        const cap = resolveCap();
+        if (cap > 0 && state.nudgeCount >= cap) {
+          await writeState(sessionId, { nudgeCount: state.nudgeCount });
+          return;
+        }
+
+        await writeState(sessionId, { nudgeCount: state.nudgeCount + 1 });
+      } catch {
+        // Fail quiet: same rationale as `immediate`'s try/catch above.
+        return;
+      }
+
+      console.log(JSON.stringify({ decision: 'block', reason: buildCheckReason(skill) }));
+    });
 }
