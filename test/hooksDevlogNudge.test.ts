@@ -183,15 +183,38 @@ describe('sb hooks devlog-nudge mark + check', () => {
   });
 
   it('mark then check emits a decision:block nudge naming the skill', () => {
-    runCliStdin(
+    const markResult = runCliStdin(
       ['hooks', 'devlog-nudge', 'mark', '--skill', 'agent-meta:park'],
       JSON.stringify({ session_id: 'sess-mc-2' }),
     );
+    expect(markResult.stdout.trim()).toBe('');
     const result = runCliStdin(['hooks', 'devlog-nudge', 'check'], JSON.stringify({ session_id: 'sess-mc-2' }));
     const payload = JSON.parse(result.stdout) as { decision: string; reason: string };
     expect(payload.decision).toBe('block');
     expect(payload.reason).toMatch(/agent-meta:park/);
     expect(payload.reason).toMatch(/devlog/);
+  });
+
+  it('mark with an empty --skill still leaves a marker that check clears (not permanently stranded)', async () => {
+    runCliStdin(
+      ['hooks', 'devlog-nudge', 'mark', '--skill', ''],
+      JSON.stringify({ session_id: 'sess-mc-empty-skill' }),
+    );
+    const state = await readState('sess-mc-empty-skill');
+    expect(state.pendingMarkerSkill).toBe('');
+
+    // First check should clear it, even though the marker value is falsy.
+    runCliStdin(['hooks', 'devlog-nudge', 'check'], JSON.stringify({ session_id: 'sess-mc-empty-skill' }));
+    const cleared = await readState('sess-mc-empty-skill');
+    expect(cleared.pendingMarkerSkill).toBeUndefined();
+
+    // A second check on the same session must now be silent: the marker
+    // was actually cleared, not left stranded because it was falsy.
+    const second = runCliStdin(
+      ['hooks', 'devlog-nudge', 'check'],
+      JSON.stringify({ session_id: 'sess-mc-empty-skill' }),
+    );
+    expect(second.stdout.trim()).toBe('');
   });
 
   it('check clears the marker: a second check on the same session is silent', () => {
@@ -225,6 +248,11 @@ describe('sb hooks devlog-nudge mark + check', () => {
 
   it('mark is silent when session_id is missing', () => {
     const result = runCliStdin(['hooks', 'devlog-nudge', 'mark', '--skill', 'agent-meta:park'], JSON.stringify({}));
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('check is silent when session_id is missing', () => {
+    const result = runCliStdin(['hooks', 'devlog-nudge', 'check'], JSON.stringify({}));
     expect(result.stdout.trim()).toBe('');
   });
 });

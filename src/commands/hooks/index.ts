@@ -84,8 +84,12 @@ export function registerHooksCommands(program: Command): void {
       try {
         const state = await readState(sessionId);
         skill = state.pendingMarkerSkill;
-        if (!skill) return;
+        if (skill === undefined) return;
 
+        // Deliberately omit pendingMarkerSkill in both writeState calls below:
+        // writeState overwrites the whole object rather than merging, so leaving
+        // the field out of the literal is what clears the marker. Don't "fix"
+        // these into spreads without also re-adding an explicit clear.
         const cap = resolveCap();
         if (cap > 0 && state.nudgeCount >= cap) {
           await writeState(sessionId, { nudgeCount: state.nudgeCount });
