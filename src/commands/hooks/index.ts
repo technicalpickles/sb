@@ -20,16 +20,27 @@ export function registerHooksCommands(program: Command): void {
 
   devlogNudge
     .command('immediate')
-    .description('Category A: emit an additionalContext nudge if under the per-session cap')
+    .description('Emit an additionalContext nudge if under the per-session cap')
     .action(async () => {
+      // "Category A" (per the external hook design doc that names it): an event
+      // whose full content already exists at the moment the caller's tool call
+      // completes. Contrast a future "Category B" - predictive, settles later.
       const sessionId = await getSessionId();
       if (!sessionId) return;
 
-      const cap = resolveCap();
-      const state = await readState(sessionId);
-      if (cap > 0 && state.nudgeCount >= cap) return;
+      try {
+        const cap = resolveCap();
+        const state = await readState(sessionId);
+        if (cap > 0 && state.nudgeCount >= cap) return;
 
-      await writeState(sessionId, { ...state, nudgeCount: state.nudgeCount + 1 });
+        await writeState(sessionId, { ...state, nudgeCount: state.nudgeCount + 1 });
+      } catch {
+        // Fail quiet: this command is invoked from an external hook script
+        // piping stdin into an unpredictable environment, so a filesystem
+        // error here must not crash the caller's shell pipeline.
+        return;
+      }
+
       console.log(
         JSON.stringify({
           hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: IMMEDIATE_REASON },

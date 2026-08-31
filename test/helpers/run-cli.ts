@@ -31,8 +31,6 @@ export function runCli(args: string[], options: RunCliOptions = {}): RunCliResul
   }
 }
 
-// Throwing variant for tests that expect success and want to assert on
-// stdout directly, or that expect failure via `.toThrow()`.
 // Like runCli, but pipes `stdin` to the child process. Needed for commands
 // that read a JSON payload from stdin (e.g. `sb hooks devlog-nudge ...`)
 // rather than taking everything as args.
@@ -52,6 +50,8 @@ export function runCliStdin(args: string[], stdin: string, options: RunCliOption
   }
 }
 
+// Throwing variant for tests that expect success and want to assert on
+// stdout directly, or that expect failure via `.toThrow()`.
 export function runCliText(args: string[], options: RunCliOptions = {}): string {
   const result = runCli(args, options);
   if (result.code !== 0) {

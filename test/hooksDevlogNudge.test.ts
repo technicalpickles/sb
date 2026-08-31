@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, readdirSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync, readdirSync, chmodSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import {
@@ -144,5 +144,20 @@ describe('sb hooks devlog-nudge immediate', () => {
       JSON.stringify({ session_id: '../etc/passwd' }),
     );
     expect(result.stdout.trim()).toBe('');
+  });
+
+  it('fails quiet, not crashing, when the state directory is unwritable', () => {
+    chmodSync(stateDir, 0o444);
+    try {
+      const result = runCliStdin(
+        ['hooks', 'devlog-nudge', 'immediate'],
+        JSON.stringify({ session_id: 'sess-imm-unwritable' }),
+      );
+      expect(result.code).toBe(0);
+      expect(result.stdout.trim()).toBe('');
+      expect(result.stderr.trim()).toBe('');
+    } finally {
+      chmodSync(stateDir, 0o755);
+    }
   });
 });
