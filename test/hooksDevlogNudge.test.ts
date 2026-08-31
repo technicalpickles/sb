@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync, readdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import {
@@ -53,6 +53,11 @@ describe('devlogNudge core', () => {
     expect(resolveCap()).toBe(0);
   });
 
+  it('falls back to the default when the value is partially numeric', () => {
+    process.env.SB_DEVLOG_NUDGE_CAP = '5abc';
+    expect(resolveCap()).toBe(3);
+  });
+
   it('returns a fresh state for a session with no state file yet', async () => {
     const state = await readState('sess-fresh');
     expect(state).toEqual({ nudgeCount: 0 });
@@ -68,5 +73,24 @@ describe('devlogNudge core', () => {
     await writeState('sess-no-marker', { nudgeCount: 1 });
     const state = await readState('sess-no-marker');
     expect(state.pendingMarkerSkill).toBeUndefined();
+  });
+
+  it('returns the default state for malformed JSON without throwing', async () => {
+    writeFileSync(join(stateDir, 'sess-malformed.json'), '{not valid json', 'utf-8');
+    const state = await readState('sess-malformed');
+    expect(state).toEqual({ nudgeCount: 0 });
+  });
+
+  describe('path-unsafe session ids', () => {
+    it('readState never touches the filesystem and returns the fresh-session default', async () => {
+      const state = await readState('../etc/passwd');
+      expect(state).toEqual({ nudgeCount: 0 });
+      expect(readdirSync(stateDir)).toEqual([]);
+    });
+
+    it('writeState is a silent no-op', async () => {
+      await writeState('../etc/passwd', { nudgeCount: 99 });
+      expect(readdirSync(stateDir)).toEqual([]);
+    });
   });
 });
