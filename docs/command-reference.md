@@ -866,6 +866,77 @@ sb describe --command note
 
 ---
 
+## Hooks
+
+`sb hooks devlog-nudge` is generic hook-integration glue: any Claude Code hook can invoke it to nudge toward a `second-brain:devlog` entry at a moment its own tooling knows about, without sb needing to know anything about that hook's specific trigger logic.
+
+All three subcommands read a standard Claude Code hook payload (JSON) from stdin and use its `session_id` field. A missing or malformed `session_id` causes a silent no-op rather than an error, so a misconfigured hook script won't produce noisy failures.
+
+### `sb hooks devlog-nudge immediate`
+
+For "Category A" triggers: an event whose full content already exists the moment the caller's tool call completes (e.g. a `PostToolUse` hook that just saw something devlog-worthy happen). Emits an `additionalContext` nudge immediately, as long as the session is still under its nudge cap.
+
+```
+echo '{"session_id": "abc123"}' | sb hooks devlog-nudge immediate
+```
+
+**Output** (omitted once the session is at or over the cap):
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
+    "additionalContext": "You just recorded something that might be devlog-worthy. If it's a non-obvious discovery worth remembering, consider a second-brain:devlog entry. Skip if this doesn't rise to that bar."
+  }
+}
+```
+
+**Behavior:**
+- Increments the session's nudge count and emits nothing once `SB_DEVLOG_NUDGE_CAP` is reached
+- Fails quiet on any filesystem error — never crashes the caller's hook script
+
+### `sb hooks devlog-nudge mark --skill <name>`
+
+For "Category B" triggers: a predictive trigger skill fires now, but whether it was worth a devlog entry only settles later, at session end. `mark` records that the named skill fired this session; a later `check` call (typically from a `Stop` hook) reads and clears that marker.
+
+```
+echo '{"session_id": "abc123"}' | sb hooks devlog-nudge mark --skill my-wrapup-skill
+```
+
+No output. Overwrites any previously pending marker skill for the session.
+
+**Behavior:**
+- Fails quiet on any filesystem error — never crashes the caller's hook script
+
+### `sb hooks devlog-nudge check`
+
+The other half of Category B: run from a later `Stop`-style hook, checks whether a marker skill is pending for the session and, if so and the session is still under its nudge cap, emits a `block` decision nudging toward a devlog entry. The pending marker is cleared either way, so each `mark` is consumed by at most one `check`.
+
+```
+echo '{"session_id": "abc123"}' | sb hooks devlog-nudge check
+```
+
+**Output** (omitted if no marker is pending, or the session is at or over the cap):
+
+```json
+{
+  "decision": "block",
+  "reason": "You just finished a session-wrapping step (skill=my-wrapup-skill). If anything non-obvious surfaced this session, consider a second-brain:devlog entry before moving on. Skip if there's nothing worth recording."
+}
+```
+
+**Behavior:**
+- No-ops if no marker is pending for the session
+- Clears the pending marker unconditionally, even when the cap suppresses the nudge
+- Fails quiet on any filesystem error — never crashes the caller's hook script
+
+### Environment variables
+
+- `SB_DEVLOG_NUDGE_CAP` - maximum nudges per session before `immediate`/`check` go quiet. Unset or empty defaults to 3. `0` means unlimited. Non-numeric or negative values also fall back to the default.
+- `SB_DEVLOG_NUDGE_STATE_DIR` - directory nudge state is persisted in, one JSON file per session (named after the session id). Defaults to `sb-devlog-nudge` under the OS temp directory.
+
+---
+
 ## Bugs Found
 
 ### 1. Config parser matches lines outside `## Vaults` section

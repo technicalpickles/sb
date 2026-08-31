@@ -27,7 +27,8 @@ src/
 │   ├── provenance/       # provenance (git context)
 │   ├── permissions/      # permissions (Claude Code entries)
 │   ├── describe/         # describe (schema introspection)
-│   └── mcp/              # mcp (run MCP server: stdio, or --listen for HTTP)
+│   ├── mcp/              # mcp (run MCP server: stdio, or --listen for HTTP)
+│   └── hooks/            # hooks devlog-nudge immediate|mark|check (generic hook-nudge mechanics)
 ├── core/                 # Shared business logic for CLI + MCP adapters
 │   ├── vault.ts          # resolveVault, structure, obsidian config
 │   ├── note.ts           # read, context, list, move, create
