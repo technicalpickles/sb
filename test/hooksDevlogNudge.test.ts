@@ -8,6 +8,7 @@ import {
   readState,
   writeState,
 } from '../src/core/devlogNudge.js';
+import { runCliStdin } from './helpers/run-cli.js';
 
 describe('devlogNudge core', () => {
   let stateDir: string;
@@ -92,5 +93,56 @@ describe('devlogNudge core', () => {
       await writeState('../etc/passwd', { nudgeCount: 99 });
       expect(readdirSync(stateDir)).toEqual([]);
     });
+  });
+});
+
+describe('sb hooks devlog-nudge immediate', () => {
+  let stateDir: string;
+
+  beforeEach(() => {
+    stateDir = mkdtempSync(join(tmpdir(), 'sb-devlog-nudge-cli-test-'));
+    process.env.SB_DEVLOG_NUDGE_STATE_DIR = stateDir;
+    process.env.SB_DEVLOG_NUDGE_CAP = '1';
+  });
+
+  afterEach(() => {
+    rmSync(stateDir, { recursive: true, force: true });
+    delete process.env.SB_DEVLOG_NUDGE_STATE_DIR;
+    delete process.env.SB_DEVLOG_NUDGE_CAP;
+  });
+
+  it('emits an additionalContext nudge for a fresh session', () => {
+    const result = runCliStdin(
+      ['hooks', 'devlog-nudge', 'immediate'],
+      JSON.stringify({ session_id: 'sess-imm-1' }),
+    );
+    expect(result.code).toBe(0);
+    const payload = JSON.parse(result.stdout) as {
+      hookSpecificOutput: { hookEventName: string; additionalContext: string };
+    };
+    expect(payload.hookSpecificOutput.hookEventName).toBe('PostToolUse');
+    expect(payload.hookSpecificOutput.additionalContext).toMatch(/devlog/);
+  });
+
+  it('stays silent once the cap (1) is spent', () => {
+    runCliStdin(['hooks', 'devlog-nudge', 'immediate'], JSON.stringify({ session_id: 'sess-imm-2' }));
+    const second = runCliStdin(
+      ['hooks', 'devlog-nudge', 'immediate'],
+      JSON.stringify({ session_id: 'sess-imm-2' }),
+    );
+    expect(second.stdout.trim()).toBe('');
+  });
+
+  it('stays silent when session_id is missing', () => {
+    const result = runCliStdin(['hooks', 'devlog-nudge', 'immediate'], JSON.stringify({}));
+    expect(result.stdout.trim()).toBe('');
+  });
+
+  it('stays silent when session_id is path-unsafe', () => {
+    const result = runCliStdin(
+      ['hooks', 'devlog-nudge', 'immediate'],
+      JSON.stringify({ session_id: '../etc/passwd' }),
+    );
+    expect(result.stdout.trim()).toBe('');
   });
 });
