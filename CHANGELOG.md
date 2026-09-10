@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/technicalpickles/sb/compare/v0.5.0...v0.5.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **daily:** stop eating the blank line before the next heading ([#30](https://github.com/technicalpickles/sb/issues/30)) ([70b1a41](https://github.com/technicalpickles/sb/commit/70b1a411c1302d3db86867b8e6d5e90628d804d7))
+
 ## [0.5.0](https://github.com/technicalpickles/sb/compare/v0.4.2...v0.5.0) (2026-08-31)
 
 
