@@ -61,8 +61,29 @@ export class DailyNoteManager {
         }
       }
 
-      // Insert before next section
-      lines.splice(nextSection, 0, content);
+      const hasFollowingHeading = nextSection < lines.length;
+
+      // Rebuild the section body rather than splicing straight in at `nextSection`:
+      // that index is the next heading's line, so inserting there consumes the
+      // blank-line separator and glues the appended line onto the heading.
+      const body = lines.slice(sectionIdx + 1, nextSection);
+      const trailingBlanks: string[] = [];
+      while (body.length > 0 && body[body.length - 1].trim() === '') {
+        trailingBlanks.push(body.pop()!);
+      }
+
+      // A heading-only section still gets a blank line before its first content.
+      if (body.length === 0) {
+        body.push('');
+      }
+      body.push(content);
+
+      // Put the separator back: one blank line ahead of a following heading, or the
+      // file's own trailing blank run when this is the last section (so appending
+      // doesn't strip the file's final newline).
+      body.push(...(hasFollowingHeading ? [''] : trailingBlanks));
+
+      lines.splice(sectionIdx + 1, nextSection - (sectionIdx + 1), ...body);
       await writeFile(filePath, lines.join('\n'));
     } else {
       // Section doesn't exist, create it as a new H2 heading at end of file
