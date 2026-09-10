@@ -214,4 +214,117 @@ describe('DailyNoteManager', () => {
     expect(content).toContain('## Links');
     expect(content).toContain('[[new-note]]');
   });
+
+  // The whitespace assertions below are deliberately exact. The section matcher was
+  // fixed earlier without them, and the append still silently ate the blank line
+  // before the next heading for weeks, because every existing test only checked
+  // ordering and containment.
+  it('keeps the blank line before the next heading when appending', async () => {
+    const notePath = join(tempDir, '2026-02-14.md');
+    await writeFile(notePath, [
+      '# 2026-02-14',
+      '',
+      '## Notes',
+      '',
+      '- existing note',
+      '',
+      '## Work Log',
+      '',
+      '- did stuff',
+      '',
+    ].join('\n'));
+
+    const manager = new DailyNoteManager(tempDir, {});
+    await manager.appendToSection(notePath, 'Notes', '- [[new-note]] - why');
+
+    expect(await readFile(notePath, 'utf-8')).toBe([
+      '# 2026-02-14',
+      '',
+      '## Notes',
+      '',
+      '- existing note',
+      '- [[new-note]] - why',
+      '',
+      '## Work Log',
+      '',
+      '- did stuff',
+      '',
+    ].join('\n'));
+  });
+
+  it('reads as one list across repeated appends', async () => {
+    const notePath = join(tempDir, '2026-02-14.md');
+    await writeFile(notePath, ['## Notes', '', '## Tasks', ''].join('\n'));
+
+    const manager = new DailyNoteManager(tempDir, {});
+    await manager.appendToSection(notePath, 'Notes', '- first');
+    await manager.appendToSection(notePath, 'Notes', '- second');
+    await manager.appendToSection(notePath, 'Notes', '- third');
+
+    // A heading-only section still gets its blank line, and three appends produce
+    // three adjacent bullets rather than three blank-separated blocks.
+    expect(await readFile(notePath, 'utf-8')).toBe([
+      '## Notes',
+      '',
+      '- first',
+      '- second',
+      '- third',
+      '',
+      '## Tasks',
+      '',
+    ].join('\n'));
+  });
+
+  it('preserves the trailing newline when appending to the last section', async () => {
+    const notePath = join(tempDir, '2026-02-14.md');
+    await writeFile(notePath, ['## Notes', '', '- existing note', ''].join('\n'));
+
+    const manager = new DailyNoteManager(tempDir, {});
+    await manager.appendToSection(notePath, 'Notes', '- appended');
+
+    expect(await readFile(notePath, 'utf-8')).toBe(
+      ['## Notes', '', '- existing note', '- appended', ''].join('\n'),
+    );
+  });
+
+  it('does not add a trailing newline the file did not already have', async () => {
+    const notePath = join(tempDir, '2026-02-14.md');
+    await writeFile(notePath, ['## Notes', '', '- existing note'].join('\n'));
+
+    const manager = new DailyNoteManager(tempDir, {});
+    await manager.appendToSection(notePath, 'Notes', '- appended');
+
+    expect(await readFile(notePath, 'utf-8')).toBe(
+      ['## Notes', '', '- existing note', '- appended'].join('\n'),
+    );
+  });
+
+  it('appends to a subsection without disturbing the parent section boundary', async () => {
+    const notePath = join(tempDir, '2026-02-14.md');
+    await writeFile(notePath, [
+      '## Work Log',
+      '',
+      '### some-project',
+      '',
+      '- did stuff',
+      '',
+      '## Links',
+      '',
+    ].join('\n'));
+
+    const manager = new DailyNoteManager(tempDir, {});
+    await manager.appendToSection(notePath, 'some-project', '- did more stuff');
+
+    expect(await readFile(notePath, 'utf-8')).toBe([
+      '## Work Log',
+      '',
+      '### some-project',
+      '',
+      '- did stuff',
+      '- did more stuff',
+      '',
+      '## Links',
+      '',
+    ].join('\n'));
+  });
 });
