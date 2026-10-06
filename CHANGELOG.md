@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/technicalpickles/sb/compare/v0.5.1...v0.6.0) (2026-10-06)
+
+
+### Features
+
+* **hooks:** add --message to devlog-nudge immediate ([#32](https://github.com/technicalpickles/sb/issues/32)) ([ba79721](https://github.com/technicalpickles/sb/commit/ba79721a887ca928365e1518413de5bc34f7e72c))
+
 ## [0.5.1](https://github.com/technicalpickles/sb/compare/v0.5.0...v0.5.1) (2026-09-10)
 
 
