@@ -21,7 +21,8 @@ export function registerHooksCommands(program: Command): void {
   devlogNudge
     .command('immediate')
     .description('Emit an additionalContext nudge if under the per-session cap')
-    .action(async () => {
+    .option('--message <text>', 'Nudge text to emit instead of the default (e.g. naming the file the caller just wrote)')
+    .action(async (opts: { message?: string }) => {
       // "Category A" (per the external hook design doc that names it): an event
       // whose full content already exists at the moment the caller's tool call
       // completes. Contrast a future "Category B" - predictive, settles later.
@@ -43,7 +44,7 @@ export function registerHooksCommands(program: Command): void {
 
       console.log(
         JSON.stringify({
-          hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: IMMEDIATE_REASON },
+          hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: opts.message || IMMEDIATE_REASON },
         }),
       );
     });
