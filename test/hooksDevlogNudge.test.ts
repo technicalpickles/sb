@@ -124,6 +124,42 @@ describe('sb hooks devlog-nudge immediate', () => {
     expect(payload.hookSpecificOutput.additionalContext).toMatch(/devlog/);
   });
 
+  it('emits the caller-supplied --message instead of the default text', () => {
+    const result = runCliStdin(
+      ['hooks', 'devlog-nudge', 'immediate', '--message', 'You just saved memory foo.md. Write a devlog entry.'],
+      JSON.stringify({ session_id: 'sess-imm-msg' }),
+    );
+    const payload = JSON.parse(result.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    expect(payload.hookSpecificOutput.additionalContext).toBe(
+      'You just saved memory foo.md. Write a devlog entry.',
+    );
+  });
+
+  it('falls back to the default text when --message is empty', () => {
+    const result = runCliStdin(
+      ['hooks', 'devlog-nudge', 'immediate', '--message', ''],
+      JSON.stringify({ session_id: 'sess-imm-empty-msg' }),
+    );
+    const payload = JSON.parse(result.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    expect(payload.hookSpecificOutput.additionalContext).toMatch(/devlog-worthy/);
+  });
+
+  it('respects the cap even with --message', () => {
+    runCliStdin(
+      ['hooks', 'devlog-nudge', 'immediate', '--message', 'first'],
+      JSON.stringify({ session_id: 'sess-imm-msg-cap' }),
+    );
+    const second = runCliStdin(
+      ['hooks', 'devlog-nudge', 'immediate', '--message', 'second'],
+      JSON.stringify({ session_id: 'sess-imm-msg-cap' }),
+    );
+    expect(second.stdout.trim()).toBe('');
+  });
+
   it('stays silent once the cap (1) is spent', () => {
     runCliStdin(['hooks', 'devlog-nudge', 'immediate'], JSON.stringify({ session_id: 'sess-imm-2' }));
     const second = runCliStdin(

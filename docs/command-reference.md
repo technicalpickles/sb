@@ -872,13 +872,17 @@ sb describe --command note
 
 All three subcommands read a standard Claude Code hook payload (JSON) from stdin and use its `session_id` field. A missing or malformed `session_id` causes a silent no-op rather than an error, so a misconfigured hook script won't produce noisy failures.
 
-### `sb hooks devlog-nudge immediate`
+### `sb hooks devlog-nudge immediate [--message <text>]`
 
 For "Category A" triggers: an event whose full content already exists the moment the caller's tool call completes (e.g. a `PostToolUse` hook that just saw something devlog-worthy happen). Emits an `additionalContext` nudge immediately, as long as the session is still under its nudge cap.
 
 ```
 echo '{"session_id": "abc123"}' | sb hooks devlog-nudge immediate
+echo '{"session_id": "abc123"}' | sb hooks devlog-nudge immediate --message "You just saved a memory to foo.md. Write a devlog entry that points to it."
 ```
+
+**Options:**
+- `--message <text>`: nudge text to emit instead of the default. Use it when the caller knows what triggered the nudge (e.g. the file it just wrote) and wants the nudge to name it. An empty value falls back to the default.
 
 **Output** (omitted once the session is at or over the cap):
 
@@ -892,7 +896,7 @@ echo '{"session_id": "abc123"}' | sb hooks devlog-nudge immediate
 ```
 
 **Behavior:**
-- Increments the session's nudge count and emits nothing once `SB_DEVLOG_NUDGE_CAP` is reached
+- Increments the session's nudge count and emits nothing once `SB_DEVLOG_NUDGE_CAP` is reached (with or without `--message`)
 - Fails quiet on any filesystem error — never crashes the caller's hook script
 
 ### `sb hooks devlog-nudge mark --skill <name>`
