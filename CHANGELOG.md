@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/technicalpickles/sb/compare/v0.6.0...v0.7.0) (2026-10-13)
+
+
+### Features
+
+* **hooks:** ask for a one-line status reply from the devlog Stop nudge ([#34](https://github.com/technicalpickles/sb/issues/34)) ([d39984e](https://github.com/technicalpickles/sb/commit/d39984ee0e7aaea042427d2e36ddd6bb24acec75))
+
 ## [0.6.0](https://github.com/technicalpickles/sb/compare/v0.5.1...v0.6.0) (2026-10-06)
 
 
