@@ -54,7 +54,14 @@ export function registerHooksCommands(program: Command): void {
   // entry only settles later, at session-end. `mark` records that the skill
   // fired; `check` (run from a later Stop hook) reads and clears the marker.
   function buildCheckReason(skill: string): string {
-    return `You just finished a session-wrapping step (skill=${skill}). If anything non-obvious surfaced this session, consider a second-brain:devlog entry before moving on. Skip if there's nothing worth recording.`;
+    return [
+      `Devlog check (skill=${skill}): if something non-obvious surfaced this session and isn't logged yet, write a second-brain:devlog entry.`,
+      'Then reply with exactly one line and nothing else, no explanation:',
+      '🟢 devlog: <note title>',
+      '🔵 devlog: already logged',
+      '⚪ devlog: nothing new',
+      'Keep the line under 100 characters. Drop a leading "Session: " from the title.',
+    ].join('\n');
   }
 
   devlogNudge
