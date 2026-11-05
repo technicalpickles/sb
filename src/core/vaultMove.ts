@@ -1,7 +1,7 @@
 import { constants, copyFile as fsCopyFile } from 'fs';
-import { mkdir, readdir, readFile, stat, unlink, utimes, writeFile } from 'fs/promises';
+import { mkdir, readdir, readFile, realpath, stat, unlink, utimes, writeFile } from 'fs/promises';
 import { promisify } from 'util';
-import { dirname, join, posix, resolve } from 'path';
+import { dirname, join, posix, resolve, sep } from 'path';
 import type { Vault } from '../services/ConfigManager.js';
 import { validatePath, validateWithinVault } from '../utils/validation.js';
 import { InvalidInputError } from '../utils/errors.js';
@@ -16,10 +16,11 @@ export type MoveStatus =
   | 'mismatch'
   | 'missing'
   | 'ambiguous'
-  | 'unresolved';
+  | 'unresolved'
+  | 'error';
 
 /** Statuses where a file did not end up where it was asked to go. */
-export const FAILED_STATUSES: ReadonlySet<MoveStatus> = new Set(['conflict', 'mismatch', 'missing', 'ambiguous']);
+export const FAILED_STATUSES: ReadonlySet<MoveStatus> = new Set(['conflict', 'mismatch', 'missing', 'ambiguous', 'error']);
 
 /** Statuses where the file leaves (or has left) the source vault. */
 const DEPARTED: ReadonlySet<MoveStatus> = new Set(['moved', 'already-moved', 'would-move']);
@@ -72,7 +73,7 @@ const defaultIo: VaultMoveIo = {
 };
 
 const WIKILINK = /(!?)\[\[([^\]|#]*)(#[^\]|]*)?(?:\|([^\]]*))?\]\]/g;
-const MD_EMBED = /!\[[^\]]*\]\(\s*(<[^>]+>|[^)\s]+)/g;
+const MD_LINK = /!?\[[^\]]*\]\(\s*(<[^>]+>|[^)\s]+)/g;
 
 /** Parse a manifest: one vault-relative path per line, first TSV column, `#` comments. */
 export function parseManifest(text: string): string[] {
@@ -113,13 +114,17 @@ async function listFiles(dir: string, rel = ''): Promise<string[]> {
 const noteTitle = (rel: string) => posix.basename(rel).replace(/\.md$/i, '');
 const isNote = (rel: string) => rel.toLowerCase().endsWith('.md');
 
-/** Attachment targets embedded by a note: `![[file.ext]]` and `![alt](path)`, excluding notes and URLs. */
-function embedTargets(content: string): { target: string; relative: boolean }[] {
-  const out: { target: string; relative: boolean }[] = [];
-  for (const m of content.matchAll(WIKILINK)) {
-    if (m[1]) out.push({ target: m[2].trim(), relative: false });
-  }
-  for (const m of content.matchAll(MD_EMBED)) {
+interface FileRef {
+  target: string;
+  /** Markdown links resolve against the note's folder first; wikilinks don't. */
+  relative: boolean;
+}
+
+/** Non-note files a note references, embedded or linked: `[[file.ext]]` and `[alt](path)`, URLs excluded. */
+function fileRefs(content: string): FileRef[] {
+  const out: FileRef[] = [];
+  for (const m of content.matchAll(WIKILINK)) out.push({ target: m[2].trim(), relative: false });
+  for (const m of content.matchAll(MD_LINK)) {
     let target = m[1].replace(/^<|>$/g, '');
     try {
       target = decodeURIComponent(target);
@@ -131,35 +136,55 @@ function embedTargets(content: string): { target: string; relative: boolean }[] 
   return out.filter(({ target }) => target && !/^[a-z][a-z0-9+.-]*:/i.test(target) && /\.[^/.]+$/.test(target) && !isNote(target));
 }
 
+interface FileIndex {
+  /** Lowercased path to actual path. Obsidian matches links case-insensitively. */
+  byPath: Map<string, string>;
+  /** Lowercased basename to actual paths. */
+  byName: Map<string, string[]>;
+}
+
+function indexFiles(files: string[]): FileIndex {
+  const byPath = new Map<string, string>();
+  const byName = new Map<string, string[]>();
+  for (const f of files) {
+    byPath.set(f.toLowerCase(), f);
+    const name = posix.basename(f).toLowerCase();
+    byName.set(name, [...(byName.get(name) ?? []), f]);
+  }
+  return { byPath, byName };
+}
+
 type Resolution = { found: string } | { ambiguous: string[] } | null;
 
-/** Resolve an embed the way Obsidian does: path from the vault root or the note's folder, else unique basename. */
-function resolveEmbed(
-  embed: { target: string; relative: boolean },
-  note: string,
-  files: ReadonlySet<string>,
-  byName: ReadonlyMap<string, string[]>,
-): Resolution {
-  const candidates = embed.relative
-    ? [posix.normalize(posix.join(posix.dirname(note), embed.target)), posix.normalize(embed.target)]
-    : [posix.normalize(embed.target)];
+/** Resolve a reference the way Obsidian does: path from the vault root or the note's folder, else unique basename. */
+function resolveRef(ref: FileRef, note: string, index: FileIndex): Resolution {
+  const candidates = ref.relative
+    ? [posix.normalize(posix.join(posix.dirname(note), ref.target)), posix.normalize(ref.target)]
+    : [posix.normalize(ref.target)];
   for (const c of candidates) {
-    if (files.has(c)) return { found: c };
+    const found = index.byPath.get(c.toLowerCase());
+    if (found) return { found };
   }
-  const named = byName.get(posix.basename(embed.target)) ?? [];
+  const named = index.byName.get(posix.basename(ref.target).toLowerCase()) ?? [];
   if (named.length === 1) return { found: named[0] };
   const sameFolder = named.filter((p) => posix.dirname(p) === posix.dirname(note));
   if (sameFolder.length === 1) return { found: sameFolder[0] };
   return named.length > 1 ? { ambiguous: named } : null;
 }
 
-function indexByName(files: string[]): Map<string, string[]> {
-  const byName = new Map<string, string[]>();
-  for (const f of files) {
-    const name = posix.basename(f);
-    byName.set(name, [...(byName.get(name) ?? []), f]);
+async function canonical(path: string): Promise<string> {
+  try {
+    return await realpath(path);
+  } catch {
+    return resolve(path);
   }
-  return byName;
+}
+
+const contains = (outer: string, inner: string) => inner === outer || inner.startsWith(outer + sep);
+
+async function sameFile(a: string, b: string): Promise<boolean> {
+  const [sa, sb] = await Promise.all([stat(a), stat(b)]);
+  return sa.dev === sb.dev && sa.ino === sb.ino;
 }
 
 function checkPath(rel: string, vaultRoot: string): string {
@@ -175,7 +200,7 @@ function checkPath(rel: string, vaultRoot: string): string {
  * Each file is copied without overwriting, byte-compared, and only then removed
  * from the source. A destination that already holds different bytes is a
  * conflict and is left alone, so rerunning converges instead of clobbering.
- * Attachments that a note staying behind still embeds are copied, not moved.
+ * Attachments that a note staying behind still references are copied, not moved.
  */
 export async function noteMoveToVault(
   from: Vault,
@@ -183,8 +208,9 @@ export async function noteMoveToVault(
   args: VaultMoveArgs,
   io: VaultMoveIo = defaultIo,
 ): Promise<VaultMoveReport> {
-  if (resolve(from.path) === resolve(to.path)) {
-    throw new InvalidInputError(`Source and destination are the same vault: ${from.path}`);
+  const [fromRoot, toRoot] = await Promise.all([canonical(from.path), canonical(to.path)]);
+  if (contains(fromRoot, toRoot) || contains(toRoot, fromRoot)) {
+    throw new InvalidInputError(`Source and destination are the same vault, or one contains the other: ${fromRoot}, ${toRoot}`);
   }
   const prefix = args.to ? checkPath(args.to, to.path).replace(/\/+$/, '').replace(/^\.$/, '') : '';
   const paths = [...new Set(args.paths.map((p) => checkPath(p, from.path)))];
@@ -201,62 +227,69 @@ export async function noteMoveToVault(
       ({ path: rel, kind, status, dest, ...(detail ? { detail } : {}) });
     const srcPath = join(from.path, rel);
     const destPath = join(to.path, dest);
-    const [srcBytes, destBytes] = await Promise.all([readOrNull(srcPath), readOrNull(destPath)]);
+    try {
+      const [srcBytes, destBytes] = await Promise.all([readOrNull(srcPath), readOrNull(destPath)]);
 
-    if (!srcBytes) return result(destBytes ? 'already-moved' : 'missing');
-    if (destBytes && !srcBytes.equals(destBytes)) return result('conflict', 'destination exists with different content');
-    if (dryRun) return result(removeSource ? 'would-move' : 'would-copy');
+      if (!srcBytes) return result(destBytes ? 'already-moved' : 'missing');
+      if (destBytes && !srcBytes.equals(destBytes)) return result('conflict', 'destination exists with different content');
+      if (destBytes && (await sameFile(srcPath, destPath))) return result('conflict', 'destination is the source file');
+      if (dryRun) return result(removeSource ? 'would-move' : 'would-copy');
 
-    if (!destBytes) {
-      await mkdir(dirname(destPath), { recursive: true });
-      await io.copyFile(srcPath, destPath);
-      const { atime, mtime } = await stat(srcPath);
-      await utimes(destPath, atime, mtime);
+      if (!destBytes) {
+        await mkdir(dirname(destPath), { recursive: true });
+        await io.copyFile(srcPath, destPath);
+        const { atime, mtime } = await stat(srcPath);
+        await utimes(destPath, atime, mtime);
+      }
+      const written = await readFile(destPath);
+      if (!written.equals(srcBytes)) return result('mismatch', 'copy does not match source; source kept');
+      if (!destBytes) changed.to.push(dest);
+      if (!removeSource) return result('copied');
+      const current = await readFile(srcPath);
+      if (!current.equals(written)) return result('mismatch', 'source changed during the move; source kept');
+      if (await sameFile(srcPath, destPath)) return result('conflict', 'destination is the source file');
+      await unlink(srcPath);
+      changed.from.push(rel);
+      return result('moved');
+    } catch (err: unknown) {
+      return result('error', err instanceof Error ? err.message : String(err));
     }
-    const written = await readFile(destPath);
-    if (!written.equals(srcBytes)) return result('mismatch', 'copy does not match source; source kept');
-    if (!destBytes) changed.to.push(dest);
-    if (!removeSource) return result('copied');
-    await unlink(srcPath);
-    changed.from.push(rel);
-    return result('moved');
   }
 
   const sourceFiles = await listFiles(from.path);
-  const sourceSet = new Set(sourceFiles);
-  const sourceByName = indexByName(sourceFiles);
-  const destFiles = await listFiles(join(to.path, prefix));
-  const destSet = new Set(destFiles);
-  const destByName = indexByName(destFiles);
+  const sourceIndex = indexFiles(sourceFiles);
+  const destIndex = indexFiles(await listFiles(join(to.path, prefix)));
 
   const results: MoveResult[] = [];
-  for (const p of paths) results.push(await transfer(p, isNote(p) ? 'note' : 'attachment', true));
+  for (const p of paths.filter(isNote)) results.push(await transfer(p, 'note', true));
 
   const departed = new Set(results.filter((r) => DEPARTED.has(r.status)).map((r) => r.path));
   const remaining = sourceFiles.filter((f) => isNote(f) && !departed.has(f));
 
-  const stillEmbedded = new Set<string>();
+  const stillReferenced = new Set<string>();
   for (const note of remaining) {
     const content = await readFile(join(from.path, note), 'utf-8');
-    for (const e of embedTargets(content)) {
-      const r = resolveEmbed(e, note, sourceSet, sourceByName);
-      if (r && 'found' in r) stillEmbedded.add(r.found);
-      if (r && 'ambiguous' in r) r.ambiguous.forEach((a) => stillEmbedded.add(a));
+    for (const ref of fileRefs(content)) {
+      const r = resolveRef(ref, note, sourceIndex);
+      if (r && 'found' in r) stillReferenced.add(r.found);
+      if (r && 'ambiguous' in r) r.ambiguous.forEach((a) => stillReferenced.add(a));
     }
   }
 
+  for (const p of paths.filter((p) => !isNote(p))) results.push(await transfer(p, 'attachment', !stillReferenced.has(p)));
+
   const handled = new Set(paths);
-  for (const note of [...departed].filter(isNote)) {
+  for (const note of departed) {
     const content = (await readOrNull(join(from.path, note))) ?? (await readFile(join(to.path, destRel(note))));
-    for (const e of embedTargets(content.toString('utf-8'))) {
-      const r = resolveEmbed(e, note, sourceSet, sourceByName) ?? resolveEmbed(e, note, destSet, destByName);
+    for (const ref of fileRefs(content.toString('utf-8'))) {
+      const r = resolveRef(ref, note, sourceIndex) ?? resolveRef(ref, note, destIndex);
       if (!r) {
-        results.push({ path: e.target, kind: 'attachment', status: 'unresolved', dest: '', detail: `embedded by ${note}` });
+        results.push({ path: ref.target, kind: 'attachment', status: 'unresolved', dest: '', detail: `referenced by ${note}` });
       } else if ('ambiguous' in r) {
-        results.push({ path: e.target, kind: 'attachment', status: 'ambiguous', dest: '', detail: `embedded by ${note}; candidates: ${r.ambiguous.join(', ')}` });
+        results.push({ path: ref.target, kind: 'attachment', status: 'ambiguous', dest: '', detail: `referenced by ${note}; candidates: ${r.ambiguous.join(', ')}` });
       } else if (!handled.has(r.found)) {
         handled.add(r.found);
-        results.push(await transfer(r.found, 'attachment', !stillEmbedded.has(r.found)));
+        results.push(await transfer(r.found, 'attachment', !stillReferenced.has(r.found)));
       }
     }
   }
@@ -265,7 +298,7 @@ export async function noteMoveToVault(
   const titles = new Map<string, string>();
   for (const n of departed) {
     const t = noteTitle(n);
-    if (isNote(n) && !leftBehind.has(t.toLowerCase())) titles.set(t.toLowerCase(), t);
+    if (!leftBehind.has(t.toLowerCase())) titles.set(t.toLowerCase(), t);
   }
 
   const rewriteLinks = (args.rewriteLinks ?? false) && !dryRun;

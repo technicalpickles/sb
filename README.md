@@ -86,7 +86,7 @@ sb note move --to-vault work --manifest moves.txt --rewrite-links          # Man
 
 Notes use Zettelkasten naming (`YYYYMMDDHHmm slug.md`) and land in your vault's inbox folder.
 
-`note move --to-vault` copies each note and the attachments it embeds, byte-compares the copy, and only then deletes the source. It never overwrites a destination file that differs, so rerunning it after a partial run is safe. See [docs/command-reference.md](docs/command-reference.md#sb-note-move---to-vault).
+`note move --to-vault` copies each note and the attachments it references, byte-compares the copy, and only then deletes the source. It never overwrites a destination file that differs, so rerunning it after a partial run is safe. See [docs/command-reference.md](docs/command-reference.md#sb-note-move---to-vault).
 
 `note context` is the key command for agent routing. It returns extracted keywords, PARA destinations, and related notes per destination.
 

@@ -604,7 +604,7 @@ sb note move --vault primary --to-vault work --to "Imported/" \
 | Status | Meaning |
 |---|---|
 | `moved` | Copied (or an identical copy was already there), byte-verified, source deleted |
-| `copied` | Attachment copied and verified, but kept in the source because a note staying behind still embeds it |
+| `copied` | Attachment copied and verified, but kept in the source because a note staying behind still references it |
 | `already-moved` | Source is gone and the destination exists; nothing to do |
 | `would-move` / `would-copy` | `--dry-run` plan |
 | `conflict` | Destination exists with different bytes; nothing is overwritten or deleted |
@@ -612,13 +612,15 @@ sb note move --vault primary --to-vault work --to "Imported/" \
 | `missing` | In neither vault |
 | `ambiguous` | An embed matches several files by name; none are moved |
 | `unresolved` | An embed points at a file that isn't in either vault (informational) |
+| `error` | An I/O error (permissions, disk) stopped this file; the rest of the run continues |
 
-The command exits 1 if any result is `conflict`, `mismatch`, `missing`, or `ambiguous`, after processing every path.
+The command exits 1 if any result is `conflict`, `mismatch`, `missing`, `ambiguous`, or `error`, after processing every path.
 
 **Behavior:**
 - Destination path is `--to` (if given) plus the source-relative path, so folder structure survives
-- Copies never overwrite; the source is deleted only after the destination's bytes equal the source's. Modification times are preserved
-- Attachments are found from `![[file.ext]]` and `![alt](path)` embeds, resolved the way Obsidian does: by path, then by unique filename
+- Copies never overwrite; the source is deleted only after the destination's bytes equal the source's, the source hasn't changed since, and the two aren't the same file (a symlink can make them so). Modification times are preserved
+- Vaults that resolve to the same directory, or where one contains the other, are rejected up front
+- Attachments are any non-note file a moved note embeds or links (`[[file.ext]]`, `![[file.ext]]`, `[alt](path)`), resolved the way Obsidian does: case-insensitively, by path, then by unique filename
 - `links` lists notes left in the source vault whose `[[wikilinks]]` point at a moved note (and no same-named note remains). `--rewrite-links` replaces each with plain text: the alias if it has one, else the note title
 - `changed` lists exactly the paths written or deleted in this run, relative to each vault root, ready for `git -C <vault> add -A -- <paths>`. `changed.from` is also a valid manifest
 - Rerunning with the same input converges: finished paths report `already-moved` and `changed` is empty

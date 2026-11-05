@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, mkdir, readFile, writeFile, rm, stat, utimes } from 'fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, writeFile, rm, stat, symlink, utimes } from 'fs/promises';
 import { dirname, join } from 'path';
 import { tmpdir } from 'os';
 import { runCli } from './helpers/run-cli.js';
@@ -179,6 +179,62 @@ describe('sb note move --to-vault', () => {
     expect(await exists(join(src, 'A/logo.png'))).toBe(true);
   });
 
+  it('keeps attachments a remaining note links to or embeds with different casing', async () => {
+    await put(src, 'trip.md', '![[doc.pdf]] ![[img.png]] ![[listed.png]]');
+    await put(src, 'doc.pdf', 'pdf');
+    await put(src, 'img.png', 'png');
+    await put(src, 'listed.png', 'png');
+    await put(src, 'k.md', 'see [[doc.pdf]] and ![[IMG.png]] and ![[listed.png]]');
+
+    const { report } = move(['trip.md', 'listed.png']);
+
+    expect(statusOf(report, 'doc.pdf')).toBe('copied');
+    expect(statusOf(report, 'img.png')).toBe('copied');
+    expect(statusOf(report, 'listed.png')).toBe('copied');
+    expect(await exists(join(src, 'doc.pdf'))).toBe(true);
+    expect(await exists(join(src, 'img.png'))).toBe(true);
+    expect(await exists(join(src, 'listed.png'))).toBe(true);
+  });
+
+  it('carries attachments a moved note links to without embedding', async () => {
+    await put(src, 'trip.md', '[[doc.pdf]] and [the sheet](sheet.csv)');
+    await put(src, 'doc.pdf', 'pdf');
+    await put(src, 'sheet.csv', 'a,b');
+
+    const { report } = move(['trip.md']);
+
+    expect(statusOf(report, 'doc.pdf')).toBe('moved');
+    expect(statusOf(report, 'sheet.csv')).toBe('moved');
+  });
+
+  it('records a failed delete as an error and still reports the rest', async () => {
+    await put(src, 'Locked/a.md', 'a');
+    await put(src, 'b.md', 'b');
+    await chmod(join(src, 'Locked'), 0o555);
+    try {
+      const { code, report } = move(['Locked/a.md', 'b.md']);
+
+      expect(code).toBe(1);
+      expect(statusOf(report, 'Locked/a.md')).toBe('error');
+      expect(statusOf(report, 'b.md')).toBe('moved');
+      expect(report.changed.to.sort()).toEqual(['Locked/a.md', 'b.md']);
+      expect(report.changed.from).toEqual(['b.md']);
+    } finally {
+      await chmod(join(src, 'Locked'), 0o755);
+    }
+  });
+
+  it('refuses a destination that is the source file through a symlinked folder', async () => {
+    await put(src, 'n.md', 'only copy');
+    await symlink(src, join(dst, 'Imported'));
+
+    const { code, report } = move(['n.md', '--to', 'Imported']);
+
+    expect(code).toBe(1);
+    expect(statusOf(report, 'n.md')).toBe('conflict');
+    expect(await readFile(join(src, 'n.md'), 'utf-8')).toBe('only copy');
+  });
+
   it('reports wikilinks that would dangle in the source vault', async () => {
     await put(src, 'Moved Note.md', 'bye');
     await put(src, 'hub.md', '[[Moved Note]] and [[Moved Note|the alias]] and [[Other]]');
@@ -227,6 +283,24 @@ describe('sb note move --to-vault', () => {
 
     expect(code).toBe(1);
     expect(stderr).toMatch(/traversal/);
+  });
+
+  it('rejects vaults that are the same directory or nested', async () => {
+    const alias = join(root, 'alias');
+    await symlink(src, alias);
+    await mkdir(join(src, 'inner'));
+    await writeFile(
+      join(home, '.claude', 'second-brain.md'),
+      `## Vaults\n\n- primary: ${src}\n- alias: ${alias}\n- inner: ${join(src, 'inner')}\n`,
+    );
+    await put(src, 'n.md', 'only copy');
+
+    for (const target of ['alias', 'inner']) {
+      const r = runCli(['note', 'move', '--vault', 'primary', '--to-vault', target, 'n.md'], { home });
+      expect(r.code).toBe(1);
+      expect(r.stderr).toMatch(/same vault/);
+    }
+    expect(await readFile(join(src, 'n.md'), 'utf-8')).toBe('only copy');
   });
 
   it('rejects moving a vault into itself', () => {
