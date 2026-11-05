@@ -80,9 +80,13 @@ sb note create --title "From code" --content "..." --source auto    # Auto-detec
 sb note read --note "Resources/Tools/202601150930 redis-guide.md"   # Structured JSON parse
 sb note context --note "📫 Inbox/202602141147 my-insight.md"        # Full routing context
 sb note move --from "📫 Inbox/202602141147 my-insight.md" --to "Resources/Tools/"
+sb note move --vault primary --to-vault work "Projects/Launch plan.md"     # Move to another vault
+sb note move --to-vault work --manifest moves.txt --rewrite-links          # Many notes, fix links left behind
 ```
 
 Notes use Zettelkasten naming (`YYYYMMDDHHmm slug.md`) and land in your vault's inbox folder.
+
+`note move --to-vault` copies each note and the attachments it embeds, byte-compares the copy, and only then deletes the source. It never overwrites a destination file that differs, so rerunning it after a partial run is safe. See [docs/command-reference.md](docs/command-reference.md#sb-note-move---to-vault).
 
 `note context` is the key command for agent routing. It returns extracted keywords, PARA destinations, and related notes per destination.
 
