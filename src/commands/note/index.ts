@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { readFile } from 'fs/promises';
 import { resolveVault } from '../../core/vault.js';
 import {
   noteCreate,
@@ -9,6 +10,8 @@ import {
   noteRead,
   noteContext,
 } from '../../core/note.js';
+import { FAILED_STATUSES, noteMoveToVault, parseManifest } from '../../core/vaultMove.js';
+import { InvalidInputError } from '../../utils/errors.js';
 
 export function registerNoteCommands(program: Command): void {
   const note = program
@@ -48,18 +51,40 @@ export function registerNoteCommands(program: Command): void {
 
   note
     .command('move')
-    .description('Move note to destination folder')
+    .description('Move a note to a folder in the vault, or notes and their attachments to another vault (--to-vault)')
+    .argument('[paths...]', 'With --to-vault: note paths relative to the source vault')
     .option('--vault <name>', 'Vault name (uses default if omitted)')
-    .requiredOption('--from <path>', 'Source path relative to vault')
-    .requiredOption('--to <path>', 'Destination folder relative to vault')
+    .option('--from <path>', 'Source path relative to vault (in-vault move)')
+    .option('--to <path>', 'Destination folder: relative to the vault, or to the --to-vault root')
+    .option('--to-vault <name>', 'Move to this vault: copy, byte-verify, then delete the source')
+    .option('--manifest <file>', 'With --to-vault: file listing paths, one per line (first TSV column, # comments)')
+    .option('--rewrite-links', 'With --to-vault: turn links left dangling in the source vault into plain text')
     .option('--dry-run', 'Show what would be moved without moving')
-    .action(async (opts: { vault?: string; from: string; to: string; dryRun?: boolean }) => {
+    .action(async (paths: string[], opts: {
+      vault?: string; from?: string; to?: string; toVault?: string; manifest?: string; rewriteLinks?: boolean; dryRun?: boolean;
+    }) => {
       const v = await resolveVault(opts.vault);
-      if (opts.dryRun) {
-        console.log(JSON.stringify({ dryRun: true, ...noteMovePreview(v, opts) }, null, 2));
+      if (opts.toVault) {
+        const listed = opts.manifest ? parseManifest(await readFile(opts.manifest, 'utf-8')) : [];
+        const report = await noteMoveToVault(v, await resolveVault(opts.toVault), {
+          paths: [...paths, ...listed],
+          to: opts.to,
+          dryRun: opts.dryRun,
+          rewriteLinks: opts.rewriteLinks,
+        });
+        console.log(JSON.stringify(report, null, 2));
+        if (report.results.some((r) => FAILED_STATUSES.has(r.status))) process.exitCode = 1;
         return;
       }
-      console.log(JSON.stringify(await noteMove(v, opts)));
+      if (!opts.from || !opts.to || paths.length > 0) {
+        throw new InvalidInputError('In-vault move needs --from and --to (or pass --to-vault to move between vaults)');
+      }
+      const args = { from: opts.from, to: opts.to };
+      if (opts.dryRun) {
+        console.log(JSON.stringify({ dryRun: true, ...noteMovePreview(v, args) }, null, 2));
+        return;
+      }
+      console.log(JSON.stringify(await noteMove(v, args)));
     });
 
   note

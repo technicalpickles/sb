@@ -268,7 +268,7 @@ Options:
 
 Commands:
   create [options]   Create a Zettelkasten note in vault inbox
-  move [options]     Move note to destination folder
+  move [options] [paths...]  Move a note to a folder in the vault, or notes and their attachments to another vault (--to-vault)
   read [options]     Read and parse a vault note as structured JSON
   context [options]  Get full routing context for a note
   help [command]     display help for command
@@ -568,6 +568,63 @@ sb note move --vault test \
 - Uses `fs.rename` (atomic on same filesystem)
 - Preserves filename
 - Paths are relative to vault root
+
+### `sb note move --to-vault`
+
+Moves notes from one vault to another, along with the attachments they embed. Paths come from positional arguments, `--manifest <file>`, or both. A manifest has one source-vault-relative path per line; blank lines and `#` comments are skipped, and only the first tab-separated column is read, so a TSV with extra columns works as-is. Use `--manifest /dev/stdin` to pipe paths in.
+
+```
+sb note move --vault primary --to-vault work --to "Imported/" \
+  --manifest moves.txt --rewrite-links
+```
+
+**Output** (abridged):
+
+```json
+{
+  "dryRun": false,
+  "from": { "name": "primary", "path": "/path/to/primary" },
+  "to": { "name": "work", "path": "/path/to/work" },
+  "results": [
+    { "path": "Projects/Launch plan.md", "kind": "note", "status": "moved", "dest": "Imported/Projects/Launch plan.md" },
+    { "path": "Attachments/map.png", "kind": "attachment", "status": "moved", "dest": "Imported/Attachments/map.png" },
+    { "path": "Attachments/logo.png", "kind": "attachment", "status": "copied", "dest": "Imported/Attachments/logo.png" }
+  ],
+  "links": [{ "note": "Areas/Hub.md", "target": "Launch plan", "count": 2 }],
+  "linksRewritten": true,
+  "changed": {
+    "from": ["Projects/Launch plan.md", "Attachments/map.png", "Areas/Hub.md"],
+    "to": ["Imported/Projects/Launch plan.md", "Imported/Attachments/map.png", "Imported/Attachments/logo.png"]
+  }
+}
+```
+
+**Statuses:**
+
+| Status | Meaning |
+|---|---|
+| `moved` | Copied (or an identical copy was already there), byte-verified, source deleted |
+| `copied` | Attachment copied and verified, but kept in the source because a note staying behind still references it |
+| `already-moved` | Source is gone and the destination exists; nothing to do |
+| `would-move` / `would-copy` | `--dry-run` plan |
+| `conflict` | Destination exists with different bytes; nothing is overwritten or deleted |
+| `mismatch` | The fresh copy did not match the source; the source is kept |
+| `missing` | In neither vault |
+| `ambiguous` | An embed matches several files by name; none are moved |
+| `unresolved` | An embed points at a file that isn't in either vault (informational) |
+| `error` | An I/O error (permissions, disk) stopped this file; the rest of the run continues |
+
+The command exits 1 if any result is `conflict`, `mismatch`, `missing`, `ambiguous`, or `error`, after processing every path.
+
+**Behavior:**
+- Destination path is `--to` (if given) plus the source-relative path, so folder structure survives
+- Copies never overwrite; the source is deleted only after the destination's bytes equal the source's, the source hasn't changed since, and the two aren't the same file (a symlink can make them so). Modification times are preserved
+- Vaults that resolve to the same directory, or where one contains the other, are rejected up front
+- Attachments are any non-note file a moved note embeds or links (`[[file.ext]]`, `![[file.ext]]`, `[alt](path)`), resolved the way Obsidian does: case-insensitively, by path, then by unique filename
+- `links` lists notes left in the source vault whose `[[wikilinks]]` point at a moved note (and no same-named note remains). `--rewrite-links` replaces each with plain text: the alias if it has one, else the note title
+- `changed` lists exactly the paths written or deleted in this run, relative to each vault root, ready for `git -C <vault> add -A -- <paths>`. `changed.from` is also a valid manifest
+- Rerunning with the same input converges: finished paths report `already-moved` and `changed` is empty
+- `--dry-run` is opt-in, like every other sb command. Nothing is lost on a real run, since every delete is gated on a verified copy, and a threshold that flipped the default based on manifest size would make the same script behave differently on different inputs
 
 ---
 
