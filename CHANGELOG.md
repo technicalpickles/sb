@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/technicalpickles/sb/compare/v0.7.0...v0.8.0) (2026-11-09)
+
+
+### Features
+
+* **note:** move notes and their attachments between vaults ([#36](https://github.com/technicalpickles/sb/issues/36)) ([f40508b](https://github.com/technicalpickles/sb/commit/f40508bc38b489495643ea2a2022a83291d17c15))
+
 ## [0.7.0](https://github.com/technicalpickles/sb/compare/v0.6.0...v0.7.0) (2026-10-13)
 
 
